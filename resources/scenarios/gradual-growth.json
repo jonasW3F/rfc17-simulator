@@ -1,0 +1,732 @@
+{
+  "exportedAt": "2026-05-21T15:38:10.764Z",
+  "note": "Gradual demand growth across 24 rounds. Demand starts at the 80% target (40 cores on 50 supply) and grows by 1 core every 2 rounds, reaching 51 by round 24. Expected: reserve_price climbs as consumption approaches 100% over the first 20 rounds, supply expands once around round 21 when demand finally saturates the initial 50 cores, and the post-expansion rounds land just above the price target. The memory-based contraction branch never fires because the rolling average sits at or above the post-expansion supply. WTPs are deliberately high (30k–60k) — under K=2.5, sustained above-target consumption pushes reserve_price into the thousands within ~20 rounds, so bidders need headroom to survive the run. See the comment in scripts/generate-scenarios.mjs.",
+  "parameters": {
+    "K": 2.5,
+    "P_MIN": 1,
+    "MIN_INCREMENT": 100,
+    "PRICE_MULTIPLIER": 3,
+    "MIN_OPENING_PRICE": 150,
+    "PENALTY": 1.3,
+    "TARGET_CONSUMPTION_RATE": 0.8,
+    "SCALE_UP_THRESHOLD": 1,
+    "POST_EXPANSION_CONSUMPTION": 0.9,
+    "SCALE_DOWN_WINDOW": 3,
+    "MIN_CORES": 10,
+    "MAX_CORES": 100,
+    "initial_num_cores": 50,
+    "initial_reserve_price": 50
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "bidders": [
+        {
+          "id": "alice",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "bob",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "carol",
+          "wtp": 50000,
+          "quantity": 10
+        },
+        {
+          "id": "dan",
+          "wtp": 45000,
+          "quantity": 10
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "bidders": [
+        {
+          "id": "alice",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "bob",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "carol",
+          "wtp": 50000,
+          "quantity": 10
+        },
+        {
+          "id": "dan",
+          "wtp": 45000,
+          "quantity": 10
+        }
+      ]
+    },
+    {
+      "round": 3,
+      "bidders": [
+        {
+          "id": "alice",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "bob",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "carol",
+          "wtp": 50000,
+          "quantity": 10
+        },
+        {
+          "id": "dan",
+          "wtp": 45000,
+          "quantity": 10
+        },
+        {
+          "id": "growth",
+          "wtp": 30000,
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "round": 4,
+      "bidders": [
+        {
+          "id": "alice",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "bob",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "carol",
+          "wtp": 50000,
+          "quantity": 10
+        },
+        {
+          "id": "dan",
+          "wtp": 45000,
+          "quantity": 10
+        },
+        {
+          "id": "growth",
+          "wtp": 30000,
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "round": 5,
+      "bidders": [
+        {
+          "id": "alice",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "bob",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "carol",
+          "wtp": 50000,
+          "quantity": 10
+        },
+        {
+          "id": "dan",
+          "wtp": 45000,
+          "quantity": 10
+        },
+        {
+          "id": "growth",
+          "wtp": 30000,
+          "quantity": 2
+        }
+      ]
+    },
+    {
+      "round": 6,
+      "bidders": [
+        {
+          "id": "alice",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "bob",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "carol",
+          "wtp": 50000,
+          "quantity": 10
+        },
+        {
+          "id": "dan",
+          "wtp": 45000,
+          "quantity": 10
+        },
+        {
+          "id": "growth",
+          "wtp": 30000,
+          "quantity": 2
+        }
+      ]
+    },
+    {
+      "round": 7,
+      "bidders": [
+        {
+          "id": "alice",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "bob",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "carol",
+          "wtp": 50000,
+          "quantity": 10
+        },
+        {
+          "id": "dan",
+          "wtp": 45000,
+          "quantity": 10
+        },
+        {
+          "id": "growth",
+          "wtp": 30000,
+          "quantity": 3
+        }
+      ]
+    },
+    {
+      "round": 8,
+      "bidders": [
+        {
+          "id": "alice",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "bob",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "carol",
+          "wtp": 50000,
+          "quantity": 10
+        },
+        {
+          "id": "dan",
+          "wtp": 45000,
+          "quantity": 10
+        },
+        {
+          "id": "growth",
+          "wtp": 30000,
+          "quantity": 3
+        }
+      ]
+    },
+    {
+      "round": 9,
+      "bidders": [
+        {
+          "id": "alice",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "bob",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "carol",
+          "wtp": 50000,
+          "quantity": 10
+        },
+        {
+          "id": "dan",
+          "wtp": 45000,
+          "quantity": 10
+        },
+        {
+          "id": "growth",
+          "wtp": 30000,
+          "quantity": 4
+        }
+      ]
+    },
+    {
+      "round": 10,
+      "bidders": [
+        {
+          "id": "alice",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "bob",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "carol",
+          "wtp": 50000,
+          "quantity": 10
+        },
+        {
+          "id": "dan",
+          "wtp": 45000,
+          "quantity": 10
+        },
+        {
+          "id": "growth",
+          "wtp": 30000,
+          "quantity": 4
+        }
+      ]
+    },
+    {
+      "round": 11,
+      "bidders": [
+        {
+          "id": "alice",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "bob",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "carol",
+          "wtp": 50000,
+          "quantity": 10
+        },
+        {
+          "id": "dan",
+          "wtp": 45000,
+          "quantity": 10
+        },
+        {
+          "id": "growth",
+          "wtp": 30000,
+          "quantity": 5
+        }
+      ]
+    },
+    {
+      "round": 12,
+      "bidders": [
+        {
+          "id": "alice",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "bob",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "carol",
+          "wtp": 50000,
+          "quantity": 10
+        },
+        {
+          "id": "dan",
+          "wtp": 45000,
+          "quantity": 10
+        },
+        {
+          "id": "growth",
+          "wtp": 30000,
+          "quantity": 5
+        }
+      ]
+    },
+    {
+      "round": 13,
+      "bidders": [
+        {
+          "id": "alice",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "bob",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "carol",
+          "wtp": 50000,
+          "quantity": 10
+        },
+        {
+          "id": "dan",
+          "wtp": 45000,
+          "quantity": 10
+        },
+        {
+          "id": "growth",
+          "wtp": 30000,
+          "quantity": 6
+        }
+      ]
+    },
+    {
+      "round": 14,
+      "bidders": [
+        {
+          "id": "alice",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "bob",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "carol",
+          "wtp": 50000,
+          "quantity": 10
+        },
+        {
+          "id": "dan",
+          "wtp": 45000,
+          "quantity": 10
+        },
+        {
+          "id": "growth",
+          "wtp": 30000,
+          "quantity": 6
+        }
+      ]
+    },
+    {
+      "round": 15,
+      "bidders": [
+        {
+          "id": "alice",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "bob",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "carol",
+          "wtp": 50000,
+          "quantity": 10
+        },
+        {
+          "id": "dan",
+          "wtp": 45000,
+          "quantity": 10
+        },
+        {
+          "id": "growth",
+          "wtp": 30000,
+          "quantity": 7
+        }
+      ]
+    },
+    {
+      "round": 16,
+      "bidders": [
+        {
+          "id": "alice",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "bob",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "carol",
+          "wtp": 50000,
+          "quantity": 10
+        },
+        {
+          "id": "dan",
+          "wtp": 45000,
+          "quantity": 10
+        },
+        {
+          "id": "growth",
+          "wtp": 30000,
+          "quantity": 7
+        }
+      ]
+    },
+    {
+      "round": 17,
+      "bidders": [
+        {
+          "id": "alice",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "bob",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "carol",
+          "wtp": 50000,
+          "quantity": 10
+        },
+        {
+          "id": "dan",
+          "wtp": 45000,
+          "quantity": 10
+        },
+        {
+          "id": "growth",
+          "wtp": 30000,
+          "quantity": 8
+        }
+      ]
+    },
+    {
+      "round": 18,
+      "bidders": [
+        {
+          "id": "alice",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "bob",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "carol",
+          "wtp": 50000,
+          "quantity": 10
+        },
+        {
+          "id": "dan",
+          "wtp": 45000,
+          "quantity": 10
+        },
+        {
+          "id": "growth",
+          "wtp": 30000,
+          "quantity": 8
+        }
+      ]
+    },
+    {
+      "round": 19,
+      "bidders": [
+        {
+          "id": "alice",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "bob",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "carol",
+          "wtp": 50000,
+          "quantity": 10
+        },
+        {
+          "id": "dan",
+          "wtp": 45000,
+          "quantity": 10
+        },
+        {
+          "id": "growth",
+          "wtp": 30000,
+          "quantity": 9
+        }
+      ]
+    },
+    {
+      "round": 20,
+      "bidders": [
+        {
+          "id": "alice",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "bob",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "carol",
+          "wtp": 50000,
+          "quantity": 10
+        },
+        {
+          "id": "dan",
+          "wtp": 45000,
+          "quantity": 10
+        },
+        {
+          "id": "growth",
+          "wtp": 30000,
+          "quantity": 9
+        }
+      ]
+    },
+    {
+      "round": 21,
+      "bidders": [
+        {
+          "id": "alice",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "bob",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "carol",
+          "wtp": 50000,
+          "quantity": 10
+        },
+        {
+          "id": "dan",
+          "wtp": 45000,
+          "quantity": 10
+        },
+        {
+          "id": "growth",
+          "wtp": 30000,
+          "quantity": 10
+        }
+      ]
+    },
+    {
+      "round": 22,
+      "bidders": [
+        {
+          "id": "alice",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "bob",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "carol",
+          "wtp": 50000,
+          "quantity": 10
+        },
+        {
+          "id": "dan",
+          "wtp": 45000,
+          "quantity": 10
+        },
+        {
+          "id": "growth",
+          "wtp": 30000,
+          "quantity": 10
+        }
+      ]
+    },
+    {
+      "round": 23,
+      "bidders": [
+        {
+          "id": "alice",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "bob",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "carol",
+          "wtp": 50000,
+          "quantity": 10
+        },
+        {
+          "id": "dan",
+          "wtp": 45000,
+          "quantity": 10
+        },
+        {
+          "id": "growth",
+          "wtp": 30000,
+          "quantity": 11
+        }
+      ]
+    },
+    {
+      "round": 24,
+      "bidders": [
+        {
+          "id": "alice",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "bob",
+          "wtp": 60000,
+          "quantity": 10
+        },
+        {
+          "id": "carol",
+          "wtp": 50000,
+          "quantity": 10
+        },
+        {
+          "id": "dan",
+          "wtp": 45000,
+          "quantity": 10
+        },
+        {
+          "id": "growth",
+          "wtp": 30000,
+          "quantity": 11
+        }
+      ]
+    }
+  ]
+}
