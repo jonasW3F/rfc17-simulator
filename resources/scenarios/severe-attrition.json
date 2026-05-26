@@ -1,5 +1,5 @@
 {
-  "exportedAt": "2026-05-21T15:38:10.765Z",
+  "exportedAt": "2026-05-26T07:32:18.930Z",
   "note": "4 rounds of equilibrium, then alice and bob (20 cores) leave the network. Real demand drops to 25 cores. Supply contracts via the rolling-window memory rule over ~3 rounds, eventually stabilising near 32 cores (25/32 ≈ 78%, close to the 80% target). Reserve_price decays accordingly. Demonstrates that memory contraction is gradual, not whipsaw-y: with a 3-round window, the system takes about that long to fully absorb the shock and land near equilibrium.",
   "parameters": {
     "K": 2.5,

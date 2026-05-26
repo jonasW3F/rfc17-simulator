@@ -1,5 +1,5 @@
 {
-  "exportedAt": "2026-05-21T15:38:10.764Z",
+  "exportedAt": "2026-05-26T07:32:18.924Z",
   "note": "Gradual demand growth across 24 rounds. Demand starts at the 80% target (40 cores on 50 supply) and grows by 1 core every 2 rounds, reaching 51 by round 24. Expected: reserve_price climbs as consumption approaches 100% over the first 20 rounds, supply expands once around round 21 when demand finally saturates the initial 50 cores, and the post-expansion rounds land just above the price target. The memory-based contraction branch never fires because the rolling average sits at or above the post-expansion supply. WTPs are deliberately high (30k–60k) — under K=2.5, sustained above-target consumption pushes reserve_price into the thousands within ~20 rounds, so bidders need headroom to survive the run. See the comment in scripts/generate-scenarios.mjs.",
   "parameters": {
     "K": 2.5,

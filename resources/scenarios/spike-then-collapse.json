@@ -1,5 +1,5 @@
 {
-  "exportedAt": "2026-05-21T15:38:10.765Z",
+  "exportedAt": "2026-05-26T07:32:18.930Z",
   "note": "3 rounds of equilibrium, a 7-round demand spike (40 → 60), a severe 5-round collapse (60 → 20 — alice and bob exit), and a 9-round partial recovery (20 → 35). The mechanism exercises both directions: expansion during the spike (50 → 56 → 63), memory-based contraction during the collapse (down to ~25), and more expansion during recovery. Reserve_price oscillates substantially across the run.",
   "parameters": {
     "K": 2.5,
