@@ -16,6 +16,12 @@ concurrency:
   group: pages
   cancel-in-progress: false
 
+env:
+  # Silence the "Node.js 20 actions deprecated" warning by running the
+  # bundled JS actions on the runner's Node 24 ahead of GitHub's June 2026
+  # default switch.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -33,6 +39,12 @@ jobs:
       - name: Build
         run: npm run build
       - uses: actions/configure-pages@v4
+        with:
+          # Auto-enable Pages on the repo if it isn't already configured to
+          # build via GitHub Actions. Avoids the "Get Pages site failed:
+          # HttpError: Not Found" failure that occurs when the action can't
+          # find an existing Pages site on the first run.
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
