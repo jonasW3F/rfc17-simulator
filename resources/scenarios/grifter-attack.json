@@ -1,5 +1,5 @@
 {
-  "exportedAt": "2026-05-26T07:32:18.930Z",
+  "exportedAt": "2026-05-26T13:40:54.157Z",
   "note": "5 rounds of equilibrium, then a one-shot supply-expansion attack: in round 6 an 'attacker' bidder pushes consumption to 100% with 10 extra cores, then drops out. Real demand stays at 40 throughout. The amendment's memory-based contraction should restore supply from the post-attack 56 back to 50 within ~4 rounds (by round 10), while reserve_price gets a single saturation bump but does not decay catastrophically. This is the regression scenario the amendment is designed to defend against.",
   "parameters": {
     "K": 2.5,
@@ -12,7 +12,7 @@
     "SCALE_UP_THRESHOLD": 1,
     "POST_EXPANSION_CONSUMPTION": 0.9,
     "SCALE_DOWN_WINDOW": 3,
-    "MIN_CORES": 10,
+    "MIN_CORES": 45,
     "MAX_CORES": 100,
     "initial_num_cores": 50,
     "initial_reserve_price": 50

@@ -1,5 +1,5 @@
 {
-  "exportedAt": "2026-05-26T07:32:18.930Z",
+  "exportedAt": "2026-05-26T13:40:54.156Z",
   "note": "5 rounds of equilibrium, then a sustained 10-round demand spike from 40 to 65 cores, then a 9-round elevated-but-lower tail at 48 cores. Watch supply expand multiple times in rounds 6–8 (50 → 56 → 63 → 70), reserve_price escalate sharply during the spike, and the memory-based contraction roll supply back down toward 60 once the spike subsides. End state: supply ~60, slightly above the original 50 because real demand is now genuinely higher than at the start.",
   "parameters": {
     "K": 2.5,
@@ -12,7 +12,7 @@
     "SCALE_UP_THRESHOLD": 1,
     "POST_EXPANSION_CONSUMPTION": 0.9,
     "SCALE_DOWN_WINDOW": 3,
-    "MIN_CORES": 10,
+    "MIN_CORES": 45,
     "MAX_CORES": 100,
     "initial_num_cores": 50,
     "initial_reserve_price": 50

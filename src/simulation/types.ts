@@ -44,7 +44,11 @@ export const DEFAULT_PARAMETERS: Parameters = {
   SCALE_UP_THRESHOLD: 1.0,
   POST_EXPANSION_CONSUMPTION: 0.9,
   SCALE_DOWN_WINDOW: 3,
-  MIN_CORES: 10,
+  // 45 is the smallest integer floor such that a saturated round's
+  // ceil(n / POST_EXPANSION_CONSUMPTION) − n adds ≥ 5 cores (at n = 45,
+  // ceil(45/0.9) − 45 = 5). Keeps post-collapse recovery from getting stuck
+  // in tiny +1/+2 expansion steps.
+  MIN_CORES: 45,
   MAX_CORES: 100,
   val_per_core: 5,
   MIN_VALIDATORS: 250,

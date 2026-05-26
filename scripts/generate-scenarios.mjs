@@ -23,7 +23,7 @@ const PARAMETERS = {
   SCALE_UP_THRESHOLD: 1.0,
   POST_EXPANSION_CONSUMPTION: 0.9,
   SCALE_DOWN_WINDOW: 3,
-  MIN_CORES: 10,
+  MIN_CORES: 45,
   MAX_CORES: 100,
   initial_num_cores: 50,
   initial_reserve_price: 50,
@@ -44,7 +44,7 @@ const TENANTS = [
 ];
 // Total at equilibrium: 40 cores, exactly 80% of initial_num_cores = 50.
 
-function build(name, note, roundFn) {
+function build(name, note, roundFn, paramOverrides = {}) {
   const rounds = [];
   for (let r = 1; r <= 24; r++) {
     const bidders = roundFn(r).filter(b => b.quantity > 0 && b.wtp > 0);
@@ -53,7 +53,7 @@ function build(name, note, roundFn) {
   const payload = {
     exportedAt: new Date().toISOString(),
     note,
-    parameters: PARAMETERS,
+    parameters: { ...PARAMETERS, ...paramOverrides },
     rounds,
   };
   const file = join(outDir, `${name}.json`);
@@ -159,7 +159,10 @@ build(
       { id: "small_a", wtp: 35000, quantity: 3 },
       { id: "small_b", wtp: 32000, quantity: 2 },
     ];
-  }
+  },
+  // Override MIN_CORES so the scenario can demonstrate deep contraction;
+  // the default 45 would clamp supply immediately at the floor.
+  { MIN_CORES: 10 }
 );
 
 console.log(`\nGenerated 5 scenarios in ${outDir}`);
