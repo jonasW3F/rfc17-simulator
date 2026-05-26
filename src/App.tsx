@@ -4,11 +4,13 @@ import { Settings } from "./components/Settings";
 import { ManualMode } from "./components/ManualMode";
 import { BatchMode } from "./components/BatchMode";
 import { Statistics } from "./components/Statistics";
+import { Specification } from "./components/Specification";
 import { ExportButtons } from "./components/ExportButtons";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "simulation", label: "Simulation" },
   { id: "statistics", label: "Statistics" },
+  { id: "specification", label: "Specification" },
   { id: "settings", label: "Settings" },
 ];
 
@@ -84,6 +86,7 @@ export default function App() {
       )}
 
       {tab === "statistics" && <Statistics />}
+      {tab === "specification" && <Specification />}
       {tab === "settings" && <Settings />}
 
       <footer className="pt-4 text-xs text-slate-400">

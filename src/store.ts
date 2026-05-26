@@ -14,7 +14,7 @@ import {
 import type { InputHistoryEntry } from "./simulation/export";
 
 export type Mode = "manual" | "batch";
-export type Tab = "simulation" | "settings" | "statistics";
+export type Tab = "simulation" | "statistics" | "specification" | "settings";
 
 interface StagedBidder extends Bidder {
   uiKey: string; // stable React key
