@@ -98,6 +98,10 @@ export function Specification() {
       </Section>
 
       <Section title="5. Economic accounting (per round)">
+        <Note>
+          Both lines are protocol outflows — STAKE_INCENTIVES paid in DOT,
+          OPERATIONAL_COST paid in a USD-denominated stablecoin.
+        </Note>
         <Formula
           lines={[
             `stake_incentives_round (DOT) = active_validators × STAKE_INCENTIVES_DOT_PER_VALIDATOR`,
@@ -106,12 +110,13 @@ export function Specification() {
             `operational_cost_round (USD) = active_validators × OPERATIONAL_COST_USD_PER_VALIDATOR`,
             `                             = active_validators × ${p.OPERATIONAL_COST_USD_PER_VALIDATOR}`,
             ``,
-            `protocol_net_round (DOT)     = revenue − stake_incentives_round`,
-            `protocol_net_round (USD)     = revenue × DOT_USD_RATE − operational_cost_round`,
-            `                               − stake_incentives_round × DOT_USD_RATE`,
+            `protocol_costs_round (USD)   = operational_cost_round + stake_incentives_round × DOT_USD_RATE`,
+            `                             = operational_cost_round + stake_incentives_round × ${p.DOT_USD_RATE}`,
             ``,
-            `validator_pl (USD/month)     = STAKE_INCENTIVES_DOT × DOT_USD_RATE − OPERATIONAL_COST_USD`,
-            `                             = ${p.STAKE_INCENTIVES_DOT_PER_VALIDATOR} × ${p.DOT_USD_RATE} − ${p.OPERATIONAL_COST_USD_PER_VALIDATOR}`,
+            `protocol_revenue_round (USD) = revenue × DOT_USD_RATE`,
+            `                             = revenue × ${p.DOT_USD_RATE}`,
+            ``,
+            `protocol_net_round (USD)     = protocol_revenue_round − protocol_costs_round`,
           ]}
         />
       </Section>
