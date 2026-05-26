@@ -48,6 +48,7 @@ interface SimStore {
   updateStagedBidder: (uiKey: string, patch: Partial<Bidder>) => void;
   removeStagedBidder: (uiKey: string) => void;
   clearStaged: () => void;
+  removeNonTenants: () => void;
 
   // Simulation control
   submitRound: () => void;
@@ -62,16 +63,6 @@ function decorate(bidders: Bidder[]): StagedBidder[] {
   return bidders.map(b => ({ ...b, uiKey: mkUiKey() }));
 }
 
-function tenantsToStaged(
-  tenants: SimulationState["tenants"]
-): StagedBidder[] {
-  return Object.entries(tenants).map(([id, info]) => ({
-    id,
-    wtp: info.lastWtp,
-    quantity: info.cores,
-    uiKey: mkUiKey(),
-  }));
-}
 
 export const useSim = create<SimStore>(set => ({
   params: DEFAULT_PARAMETERS,
@@ -131,11 +122,19 @@ export const useSim = create<SimStore>(set => ({
 
   clearStaged: () => set({ stagedBidders: [] }),
 
+  removeNonTenants: () =>
+    set(s => ({
+      stagedBidders: s.stagedBidders.filter(b => !!s.state.tenants[b.id]),
+    })),
+
   submitRound: () =>
     set(s => {
       const bidders: Bidder[] = s.stagedBidders.map(({ uiKey: _uiKey, ...b }) => b);
       const result = runRound(s.state, { bidders }, s.params);
       const nextState = advanceState(s.state, result);
+      // stagedBidders intentionally left untouched — the user keeps the
+      // exact list they submitted and can iterate. Use removeNonTenants to
+      // drop bidders who didn't win cores this round.
       return {
         state: nextState,
         history: [...s.history, result],
@@ -143,10 +142,6 @@ export const useSim = create<SimStore>(set => ({
           ...s.inputHistory,
           { round: s.state.round, bidders },
         ],
-        // Seed the next round's staging with the current tenants at their
-        // last bid WTP. The user can still edit, remove, or add new bidders
-        // before submitting.
-        stagedBidders: tenantsToStaged(nextState.tenants),
       };
     }),
 
@@ -155,17 +150,21 @@ export const useSim = create<SimStore>(set => ({
       let state = s.state;
       const history = [...s.history];
       const inputHistory = [...s.inputHistory];
+      let lastBidders: Bidder[] = [];
       for (const bidders of perRound) {
         const result = runRound(state, { bidders }, s.params);
         history.push(result);
         inputHistory.push({ round: state.round, bidders });
         state = advanceState(state, result);
+        lastBidders = bidders;
       }
+      // Surface the final batch round's bidders in the staging list so the
+      // user can continue iterating manually without re-creating them.
       return {
         state,
         history,
         inputHistory,
-        stagedBidders: tenantsToStaged(state.tenants),
+        stagedBidders: decorate(lastBidders),
       };
     }),
 

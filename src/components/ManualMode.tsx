@@ -13,7 +13,13 @@ export function ManualMode() {
   const updateStagedBidder = useSim(s => s.updateStagedBidder);
   const removeStagedBidder = useSim(s => s.removeStagedBidder);
   const clearStaged = useSim(s => s.clearStaged);
+  const removeNonTenants = useSim(s => s.removeNonTenants);
   const submitRound = useSim(s => s.submitRound);
+
+  const nonTenantCount = useMemo(
+    () => stagedBidders.filter(b => !state.tenants[b.id]).length,
+    [stagedBidders, state.tenants]
+  );
 
   const opening = useMemo(
     () => Math.max(params.MIN_OPENING_PRICE, params.PRICE_MULTIPLIER * state.reserve_price),
@@ -47,10 +53,18 @@ export function ManualMode() {
 
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-4">
         <button
+          onClick={removeNonTenants}
+          disabled={nonTenantCount === 0}
+          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          title="Drop staged bidders who did not win cores in the most recent round"
+        >
+          Remove non-tenants ({nonTenantCount})
+        </button>
+        <button
           onClick={clearStaged}
           disabled={stagedBidders.length === 0}
           className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-          title="Remove all staged bidders, including auto-added tenants"
+          title="Remove all staged bidders"
         >
           Clear stage
         </button>
@@ -268,7 +282,7 @@ function StagedList(props: {
   if (props.bidders.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">
-        No bidders staged yet. Add some above. After a round runs, current tenants are added back automatically.
+        No bidders staged yet. Add some above. After a round runs the list is kept as-is; use "Remove non-tenants" or "Clear stage" to prune.
       </div>
     );
   }
