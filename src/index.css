@@ -2,6 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  color-scheme: light;
+  /* Semantic color tokens as "R G B" channels (consumed via rgb(var(--x) / a)). */
+  --c-bg: 248 250 252;        /* slate-50  — page */
+  --c-surface: 255 255 255;   /* white     — cards */
+  --c-surface-2: 248 250 252; /* slate-50  — table headers, subtle fills */
+  --c-fg: 15 23 42;           /* slate-900 — primary text */
+  --c-fg-2: 71 85 105;        /* slate-600 — secondary text */
+  --c-muted: 148 163 184;     /* slate-400 — hints */
+  --c-line: 226 232 240;      /* slate-200 — borders */
+}
+
+.dark {
+  color-scheme: dark;
+  --c-bg: 2 6 23;             /* slate-950 */
+  --c-surface: 15 23 42;      /* slate-900 */
+  --c-surface-2: 30 41 59;    /* slate-800 */
+  --c-fg: 241 245 249;        /* slate-100 */
+  --c-fg-2: 203 213 225;      /* slate-300 */
+  --c-muted: 100 116 139;     /* slate-500 */
+  --c-line: 30 41 59;         /* slate-800 */
+}
+
 html, body, #root {
   height: 100%;
 }

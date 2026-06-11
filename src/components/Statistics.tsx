@@ -17,15 +17,25 @@ type SortKey = "id" | "totalPaid" | "totalCores" | "rounds" | "avgPrice";
 export function Statistics() {
   const history = useSim(s => s.history);
   const params = useSim(s => s.params);
+  const dark = useSim(s => s.theme === "dark");
   const [sortKey, setSortKey] = useState<SortKey>("totalPaid");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  // Theme-aware recharts neutrals (literal colors; pastel bars read on both).
+  const chartGrid = dark ? "#334155" : "#e2e8f0";
+  const chartTick = { fontSize: 11, fill: dark ? "#94a3b8" : "#475569" };
+  const chartTooltip = dark
+    ? { fontSize: 12, backgroundColor: "#1e293b", border: "1px solid #334155", borderRadius: 6, color: "#e2e8f0" }
+    : { fontSize: 12 };
+  const chartLegend = dark ? { fontSize: 11, color: "#cbd5e1" } : { fontSize: 11 };
+  const netStroke = dark ? "#e2e8f0" : "#0f172a";
 
   const summary = useMemo(() => summarize(history), [history]);
   const economics = useMemo(() => computeEconomics(history, params), [history, params]);
 
   if (history.length === 0) {
     return (
-      <div className="rounded-xl border border-slate-200 bg-white p-10 text-center text-slate-500">
+      <div className="rounded-xl border border-line bg-surface p-10 text-center text-fg-2">
         No rounds run yet. Run a few to populate statistics.
       </div>
     );
@@ -58,7 +68,7 @@ export function Statistics() {
   return (
     <div className="space-y-4">
       <section>
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
+        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-fg-2">
           Market summary
         </h2>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -74,14 +84,15 @@ export function Statistics() {
       </section>
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
+        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-fg-2">
           Validator economics
         </h2>
-        <p className="mb-3 text-xs text-slate-500">
-          Active validators = max({params.MIN_VALIDATORS}, num_cores ×{" "}
-          {params.val_per_core}). One round ≈ one month. Both stake incentives
-          (DOT) and operational cost (USD) are paid by the protocol; combined
-          totals are shown in USD-equivalent at the configured DOT/USD rate.
+        <p className="mb-3 text-xs text-fg-2">
+          Active validators = max({params.MIN_VALIDATORS}, (num_cores +{" "}
+          {params.SYSTEM_CORES} system) × {params.val_per_core}). One round ≈ one
+          month. Both stake incentives (DOT) and operational-cost reward (USD)
+          are paid by the protocol; combined totals are shown in USD-equivalent
+          at the configured DOT/USD rate.
         </p>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <Card label="Avg active validators" value={fmt(economics.avgValidators)} />
@@ -101,8 +112,8 @@ export function Statistics() {
           />
         </div>
 
-        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-          <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
+        <div className="mt-4 rounded-xl border border-line bg-surface p-4">
+          <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-fg-2">
             Revenue vs. protocol cost (USD-equivalent per round)
           </h3>
           <ResponsiveContainer width="100%" height={260}>
@@ -110,11 +121,11 @@ export function Statistics() {
               data={economics.perRound}
               margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
             >
-              <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" />
-              <XAxis dataKey="round" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip contentStyle={{ fontSize: 12 }} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <CartesianGrid stroke={chartGrid} strokeDasharray="3 3" />
+              <XAxis dataKey="round" tick={chartTick} />
+              <YAxis tick={chartTick} />
+              <Tooltip contentStyle={chartTooltip} />
+              <Legend wrapperStyle={chartLegend} />
               <Bar
                 dataKey="incentives_usd"
                 name="Stake incentives (USD-eq.)"
@@ -124,7 +135,7 @@ export function Statistics() {
               />
               <Bar
                 dataKey="ops_usd"
-                name="Operational cost (USD)"
+                name="Operational-cost reward (USD)"
                 stackId="cost"
                 fill="#fde68a"
                 barSize={22}
@@ -141,7 +152,7 @@ export function Statistics() {
                 type="monotone"
                 dataKey="net_usd"
                 name="Net (revenue − total cost)"
-                stroke="#0f172a"
+                stroke={netStroke}
                 strokeWidth={1.5}
                 strokeDasharray="3 3"
                 dot={false}
@@ -152,13 +163,13 @@ export function Statistics() {
       </section>
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
+        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-fg-2">
           Per-bidder ledger
         </h2>
-        <div className="rounded-xl border border-slate-200 bg-white">
+        <div className="rounded-xl border border-line bg-surface">
           <div className="max-h-[28rem] overflow-auto">
             <table className="min-w-full text-sm">
-              <thead className="sticky top-0 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+              <thead className="sticky top-0 bg-surface-2 text-left text-xs uppercase tracking-wide text-fg-2">
                 <tr>
                   <Th onClick={() => toggleSort("id")} active={sortKey === "id"} dir={sortDir}>Bidder</Th>
                   <Th onClick={() => toggleSort("totalCores")} active={sortKey === "totalCores"} dir={sortDir}>Total cores</Th>
@@ -170,7 +181,7 @@ export function Statistics() {
               </thead>
               <tbody>
                 {rows.map(r => (
-                  <tr key={r.id} className="border-t border-slate-100">
+                  <tr key={r.id} className="border-t border-line">
                     <td className="px-4 py-1.5 font-mono">{r.id}</td>
                     <td className="px-4 py-1.5 font-mono">{r.totalCores}</td>
                     <td className="px-4 py-1.5 font-mono">{r.roundsWithCore}</td>
@@ -186,13 +197,13 @@ export function Statistics() {
       </section>
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
+        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-fg-2">
           Round-by-round log
         </h2>
-        <div className="rounded-xl border border-slate-200 bg-white">
+        <div className="rounded-xl border border-line bg-surface">
           <div className="max-h-[28rem] overflow-auto">
             <table className="min-w-full text-sm">
-              <thead className="sticky top-0 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+              <thead className="sticky top-0 bg-surface-2 text-left text-xs uppercase tracking-wide text-fg-2">
                 <tr>
                   <th className="px-4 py-2">Round</th>
                   <th className="px-4 py-2">Supply</th>
@@ -208,7 +219,7 @@ export function Statistics() {
               </thead>
               <tbody>
                 {economics.perRound.map(r => (
-                  <tr key={r.round} className="border-t border-slate-100">
+                  <tr key={r.round} className="border-t border-line">
                     <td className="px-4 py-1.5 font-mono">{r.round}</td>
                     <td className="px-4 py-1.5 font-mono">{r.supply}</td>
                     <td className="px-4 py-1.5 font-mono">{r.demand}</td>
@@ -221,7 +232,7 @@ export function Statistics() {
                     <td
                       className={
                         "px-4 py-1.5 font-mono " +
-                        (r.net_usd >= 0 ? "text-emerald-700" : "text-rose-700")
+                        (r.net_usd >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-700 dark:text-rose-400")
                       }
                     >
                       {fmt(r.net_usd)}
@@ -249,12 +260,12 @@ function Card({
   hint?: string;
 }) {
   const toneClass =
-    tone === "good" ? "text-emerald-700" : tone === "bad" ? "text-rose-700" : "text-ink";
+    tone === "good" ? "text-emerald-700 dark:text-emerald-400" : tone === "bad" ? "text-rose-700 dark:text-rose-400" : "text-fg";
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3">
-      <div className="text-xs uppercase tracking-wide text-slate-500">{label}</div>
+    <div className="rounded-xl border border-line bg-surface p-3">
+      <div className="text-xs uppercase tracking-wide text-fg-2">{label}</div>
       <div className={`font-mono text-lg font-semibold ${toneClass}`}>{value}</div>
-      {hint && <div className="mt-0.5 text-[10px] text-slate-400">{hint}</div>}
+      {hint && <div className="mt-0.5 text-[10px] text-muted">{hint}</div>}
     </div>
   );
 }
@@ -273,10 +284,10 @@ function Th({
   return (
     <th
       onClick={onClick}
-      className="cursor-pointer select-none px-4 py-2 hover:bg-slate-100"
+      className="cursor-pointer select-none px-4 py-2 hover:bg-surface-2"
     >
       {children}
-      {active && <span className="ml-1 text-slate-400">{dir === "asc" ? "↑" : "↓"}</span>}
+      {active && <span className="ml-1 text-muted">{dir === "asc" ? "↑" : "↓"}</span>}
     </th>
   );
 }
@@ -351,7 +362,7 @@ function computeEconomics(
     const validators = h.active_validators;
     const incentives_dot = validators * params.STAKE_INCENTIVES_DOT_PER_VALIDATOR;
     const incentives_usd = incentives_dot * params.DOT_USD_RATE;
-    const ops_usd = validators * params.OPERATIONAL_COST_USD_PER_VALIDATOR;
+    const ops_usd = validators * params.REWARD_FOR_OPERATIONAL_COSTS_USD_PER_VALIDATOR;
     const total_cost_usd = ops_usd + incentives_usd;
     const revenue_usd = h.revenue * params.DOT_USD_RATE;
     const net_usd = revenue_usd - total_cost_usd;
@@ -397,7 +408,7 @@ function computeEconomics(
   const lastIncentivesDot = lastValidators * params.STAKE_INCENTIVES_DOT_PER_VALIDATOR;
   const lastOpsDot =
     params.DOT_USD_RATE > 0
-      ? (lastValidators * params.OPERATIONAL_COST_USD_PER_VALIDATOR) / params.DOT_USD_RATE
+      ? (lastValidators * params.REWARD_FOR_OPERATIONAL_COSTS_USD_PER_VALIDATOR) / params.DOT_USD_RATE
       : 0;
   const breakEvenClearing =
     lastSupply > 0 ? (lastIncentivesDot + lastOpsDot) / lastSupply : 0;

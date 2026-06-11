@@ -39,7 +39,7 @@ export function ExportButtons() {
       <button
         onClick={() => setOpen(true)}
         disabled={disabled}
-        className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+        className="rounded-md border border-line bg-surface px-3 py-1.5 text-sm font-medium text-fg-2 hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50"
       >
         Export JSON
       </button>
@@ -52,26 +52,26 @@ export function ExportButtons() {
           aria-modal="true"
         >
           <div
-            className="w-full max-w-lg rounded-xl border border-slate-200 bg-white p-5 shadow-xl"
+            className="w-full max-w-lg rounded-xl border border-line bg-surface p-5 shadow-xl"
             onClick={e => e.stopPropagation()}
           >
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-fg-2">
               Export simulation inputs
             </h3>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-fg-2">
               {inputHistory.length} round{inputHistory.length === 1 ? "" : "s"} captured, plus the
               current settings. The note is embedded in the JSON so others reading the file see your
               observations.
             </p>
             <label className="mt-3 flex flex-col gap-1">
-              <span className="text-xs font-medium text-slate-700">Note (optional)</span>
+              <span className="text-xs font-medium text-fg-2">Note (optional)</span>
               <textarea
                 value={note}
                 onChange={e => setNote(e.target.value)}
                 rows={6}
                 autoFocus
                 placeholder="e.g. 'Severe attrition scenario — tenants halved between r2 and r3, watch the supply contraction in r3 chart.'"
-                className="rounded-md border border-slate-300 px-2 py-1.5 font-mono text-sm focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+                className="rounded-md border border-line px-2 py-1.5 font-mono text-sm focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
               />
             </label>
             <div className="mt-4 flex justify-end gap-2">
@@ -80,7 +80,7 @@ export function ExportButtons() {
                   setOpen(false);
                   setNote("");
                 }}
-                className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
+                className="rounded-md border border-line bg-surface px-3 py-1.5 text-sm hover:bg-surface-2"
               >
                 Cancel
               </button>

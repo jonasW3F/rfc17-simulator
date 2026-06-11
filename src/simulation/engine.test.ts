@@ -62,6 +62,7 @@ describe("runRound", () => {
       MIN_CORES: 1,
       MIN_OPENING_PRICE: 1000,
       PRICE_MULTIPLIER: 100,
+      VALIDATOR_PROFIT_MARGIN: 0, // isolate the base supply rule (no validator gate)
     };
     const state = initialState(params);
     const res = runRound(
@@ -125,6 +126,7 @@ describe("runRound", () => {
       K: 0,
       MIN_INCREMENT: 0,
       SCALE_DOWN_WINDOW: 3,
+      VALIDATOR_PROFIT_MARGIN: 0, // isolate the base supply rule (no validator gate)
     };
     let state = initialState(params);
 
@@ -178,9 +180,10 @@ describe("runRound", () => {
     expect(state.recentSold).toEqual([2]);
   });
 
-  it("computes active_validators = max(MIN_VALIDATORS, num_cores * val_per_core)", () => {
+  it("computes active_validators = max(MIN_VALIDATORS, (num_cores + SYSTEM_CORES) * val_per_core)", () => {
+    // No system cores: test the core relationship in isolation.
     // Floor case: 30 cores × 5 = 150 < MIN_VALIDATORS = 250 → 250.
-    const lowParams = { ...DEFAULT_PARAMETERS, initial_num_cores: 30, MIN_CORES: 1 };
+    const lowParams = { ...DEFAULT_PARAMETERS, SYSTEM_CORES: 0, initial_num_cores: 30, MIN_CORES: 1 };
     const r1 = runRound(
       initialState(lowParams),
       { bidders: [{ id: "a", wtp: 100, quantity: 10 }] },
@@ -189,7 +192,7 @@ describe("runRound", () => {
     expect(r1.active_validators).toBe(250);
 
     // Scaling case: 80 cores × 5 = 400 > 250 → 400.
-    const highParams = { ...DEFAULT_PARAMETERS, initial_num_cores: 80, MIN_CORES: 1 };
+    const highParams = { ...DEFAULT_PARAMETERS, SYSTEM_CORES: 0, initial_num_cores: 80, MIN_CORES: 1 };
     const r2 = runRound(
       initialState(highParams),
       { bidders: [{ id: "a", wtp: 100, quantity: 10 }] },
@@ -197,14 +200,24 @@ describe("runRound", () => {
     );
     expect(r2.active_validators).toBe(400);
 
-    // Break-even at 50 cores: 50 × 5 = 250 = MIN_VALIDATORS.
-    const evenParams = { ...DEFAULT_PARAMETERS, initial_num_cores: 50, MIN_CORES: 1 };
+    // System cores add to the count: (80 + 19) × 5 = 495.
+    const sysParams = { ...DEFAULT_PARAMETERS, SYSTEM_CORES: 19, initial_num_cores: 80, MIN_CORES: 1 };
     const r3 = runRound(
-      initialState(evenParams),
+      initialState(sysParams),
       { bidders: [{ id: "a", wtp: 100, quantity: 10 }] },
-      evenParams
+      sysParams
     );
-    expect(r3.active_validators).toBe(250);
+    expect(r3.active_validators).toBe(495);
+
+    // With 19 system cores the 250 floor binds up to 31 market cores:
+    // (31 + 19) × 5 = 250 exactly.
+    const breakEvenParams = { ...DEFAULT_PARAMETERS, SYSTEM_CORES: 19, initial_num_cores: 31, MIN_CORES: 1 };
+    const r4 = runRound(
+      initialState(breakEvenParams),
+      { bidders: [{ id: "a", wtp: 100, quantity: 10 }] },
+      breakEvenParams
+    );
+    expect(r4.active_validators).toBe(250);
   });
 
   it("counts renewals separately from new sales", () => {
@@ -251,6 +264,59 @@ describe("runRound", () => {
       params
     );
     expect(res.next_reserve_price).toBe(150); // 50 + MIN_INCREMENT
+  });
+
+  // Validator-entry gate: expansion requires saturation AND reserve_price > P*,
+  // where P* = val_per_core × VALIDATOR_PROFIT_MARGIN × payout. These params
+  // pin P* = 5 × 0.2 × 100 = 100 DOT/core. Gating on the reserve (not clearing)
+  // means that whenever expansion is allowed, the reserve already exceeds a
+  // validator's WTP, so validators are locked out of the auction.
+  const gateBase = {
+    ...DEFAULT_PARAMETERS,
+    initial_num_cores: 10,
+    MIN_CORES: 1,
+    MIN_OPENING_PRICE: 2000, // high enough that the test bids aren't capped
+    STAKE_INCENTIVES_DOT_PER_VALIDATOR: 100,
+    REWARD_FOR_OPERATIONAL_COSTS_USD_PER_VALIDATOR: 0,
+    DOT_USD_RATE: 1,
+    val_per_core: 5,
+    VALIDATOR_PROFIT_MARGIN: 0.2, // P* = 100
+  };
+
+  it("does NOT expand when saturated and clearing > P* but reserve ≤ P*", () => {
+    // reserve 50 ≤ P*=100; bids clear well above P*, but the gate keys off the
+    // reserve, so a clearing spike alone does not unlock expansion.
+    const params = { ...gateBase, initial_reserve_price: 50 };
+    const res = runRound(
+      initialState(params),
+      { bidders: [{ id: "a", wtp: 200, quantity: 12 }] }, // clears at 200 > P*=100
+      params
+    );
+    expect(res.consumption_rate).toBe(1);
+    expect(res.clearing_price).toBeGreaterThan(100);
+    expect(res.next_num_cores).toBe(res.num_cores); // reserve ≤ P* → no expansion
+  });
+
+  it("expands when saturated and reserve_price > P* (validators locked out)", () => {
+    const params = { ...gateBase, initial_reserve_price: 150 }; // 150 > P*=100
+    const res = runRound(
+      initialState(params),
+      { bidders: [{ id: "a", wtp: 200, quantity: 12 }] },
+      params
+    );
+    expect(res.consumption_rate).toBe(1);
+    expect(res.reserve_price).toBeGreaterThan(100);
+    expect(res.next_num_cores).toBeGreaterThan(res.num_cores); // ceil(10/0.9)=12
+  });
+
+  it("VALIDATOR_PROFIT_MARGIN = 0 disables the gate (P*=0 → reserve > 0 always)", () => {
+    const params0 = { ...gateBase, initial_reserve_price: 50, VALIDATOR_PROFIT_MARGIN: 0 };
+    const res = runRound(
+      initialState(params0),
+      { bidders: [{ id: "a", wtp: 80, quantity: 12 }] },
+      params0
+    );
+    expect(res.next_num_cores).toBeGreaterThan(res.num_cores);
   });
 
   it("respects renewal floor on contraction", () => {

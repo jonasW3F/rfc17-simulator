@@ -15,6 +15,25 @@ import type { InputHistoryEntry } from "./simulation/export";
 
 export type Mode = "manual" | "batch";
 export type Tab = "simulation" | "statistics" | "specification" | "settings";
+export type Theme = "light" | "dark";
+
+/** Read the theme the no-FOUC inline script (index.html) already applied. */
+function initialTheme(): Theme {
+  if (typeof document !== "undefined" && document.documentElement.classList.contains("dark")) {
+    return "dark";
+  }
+  return "light";
+}
+
+function applyTheme(theme: Theme): void {
+  if (typeof document === "undefined") return;
+  document.documentElement.classList.toggle("dark", theme === "dark");
+  try {
+    localStorage.setItem("theme", theme);
+  } catch {
+    /* ignore storage failures (private mode etc.) */
+  }
+}
 
 interface StagedBidder extends Bidder {
   uiKey: string; // stable React key
@@ -33,11 +52,13 @@ interface SimStore {
   // UI
   tab: Tab;
   mode: Mode;
+  theme: Theme;
   stagedBidders: StagedBidder[];
 
   // Setters
   setTab: (t: Tab) => void;
   setMode: (m: Mode) => void;
+  toggleTheme: () => void;
   updateParam: <K extends keyof Parameters>(key: K, value: Parameters[K]) => void;
   setParameters: (params: Parameters) => void;
   resetParams: () => void;
@@ -71,10 +92,17 @@ export const useSim = create<SimStore>(set => ({
   inputHistory: [],
   tab: "simulation",
   mode: "manual",
+  theme: initialTheme(),
   stagedBidders: [],
 
   setTab: t => set({ tab: t }),
   setMode: m => set({ mode: m }),
+  toggleTheme: () =>
+    set(s => {
+      const theme: Theme = s.theme === "dark" ? "light" : "dark";
+      applyTheme(theme);
+      return { theme };
+    }),
 
   updateParam: (key, value) =>
     set(s => {

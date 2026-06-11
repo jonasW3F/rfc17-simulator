@@ -63,11 +63,11 @@ export function BatchMode() {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-slate-200 bg-white p-4">
-        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+      <div className="rounded-xl border border-line bg-surface p-4">
+        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-fg-2">
           Upload a multi-round schedule
         </h3>
-        <p className="mb-3 text-sm text-slate-600">
+        <p className="mb-3 text-sm text-fg-2">
           Accepts CSV (<code className="font-mono text-xs">round,bidder_id,wtp,quantity</code>) or JSON
           (<code className="font-mono text-xs">{`{ rounds: [...], parameters?: {...} }`}</code>). JSON
           files exported from this tool round-trip with the embedded settings.
@@ -84,7 +84,7 @@ export function BatchMode() {
           />
           <button
             onClick={() => loadFromText("sample.csv", SAMPLE_CSV)}
-            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
+            className="rounded-md border border-line bg-surface px-3 py-1.5 text-sm hover:bg-surface-2"
           >
             Load sample
           </button>
@@ -94,7 +94,7 @@ export function BatchMode() {
               setFilename("");
             }}
             disabled={!schedule}
-            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-md border border-line bg-surface px-3 py-1.5 text-sm hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Clear file
           </button>
@@ -131,20 +131,20 @@ function SchedulePreview(props: {
   );
   const hasParams = !!props.schedule.parameters;
   return (
-    <div className="rounded-xl border border-slate-200 bg-white">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-2">
+    <div className="rounded-xl border border-line bg-surface">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-2">
         <div>
-          <div className="text-sm font-semibold text-ink">{props.filename}</div>
-          <div className="text-xs text-slate-500">
+          <div className="text-sm font-semibold text-fg">{props.filename}</div>
+          <div className="text-xs text-fg-2">
             {props.schedule.rounds.length} round{props.schedule.rounds.length === 1 ? "" : "s"},{" "}
             {totalBidders} bidder entries
             {hasParams && (
-              <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-900">
+              <span className="ml-2 rounded-full bg-sky-100 dark:bg-sky-900/40 px-2 py-0.5 text-[11px] font-medium text-sky-900 dark:text-sky-200">
                 settings detected
               </span>
             )}
             {props.schedule.errors.length > 0 && (
-              <span className="ml-2 text-rose-600">
+              <span className="ml-2 text-rose-600 dark:text-rose-400">
                 · {props.schedule.errors.length} error
                 {props.schedule.errors.length === 1 ? "" : "s"}
               </span>
@@ -153,7 +153,7 @@ function SchedulePreview(props: {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {hasParams && (
-            <label className="flex items-center gap-1.5 text-xs text-slate-700">
+            <label className="flex items-center gap-1.5 text-xs text-fg-2">
               <input
                 type="checkbox"
                 checked={props.applyParams}
@@ -165,7 +165,7 @@ function SchedulePreview(props: {
           )}
           <button
             onClick={props.onResetThenRun}
-            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
+            className="rounded-md border border-line bg-surface px-3 py-1.5 text-sm hover:bg-surface-2"
           >
             Reset & run all
           </button>
@@ -179,7 +179,7 @@ function SchedulePreview(props: {
       </div>
 
       {props.schedule.errors.length > 0 && (
-        <div className="border-b border-rose-100 bg-rose-50 px-4 py-2 text-xs text-rose-700">
+        <div className="border-b border-rose-100 bg-rose-50 dark:border-rose-900 dark:bg-rose-950/40 px-4 py-2 text-xs text-rose-700 dark:text-rose-400">
           {props.schedule.errors.slice(0, 5).map((e, i) => (
             <div key={i} className="font-mono">{e}</div>
           ))}
@@ -193,7 +193,7 @@ function SchedulePreview(props: {
 
       <div className="max-h-80 overflow-auto">
         <table className="min-w-full text-sm">
-          <thead className="sticky top-0 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+          <thead className="sticky top-0 bg-surface-2 text-left text-xs uppercase tracking-wide text-fg-2">
             <tr>
               <th className="px-4 py-2">Round</th>
               <th className="px-4 py-2">Bidders</th>
@@ -208,7 +208,7 @@ function SchedulePreview(props: {
               const meanWtp =
                 r.bidders.reduce((s, b) => s + b.wtp * b.quantity, 0) / Math.max(qty, 1);
               return (
-                <tr key={r.round} className="border-t border-slate-100">
+                <tr key={r.round} className="border-t border-line">
                   <td className="px-4 py-1.5 font-mono">{r.round}</td>
                   <td className="px-4 py-1.5 font-mono">{r.bidders.length}</td>
                   <td className="px-4 py-1.5 font-mono">{qty}</td>
@@ -242,13 +242,13 @@ function ParameterDiff({ schedule }: { schedule: ParsedSchedule }) {
     }));
   if (diffs.length === 0) {
     return (
-      <div className="border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-500">
+      <div className="border-b border-line bg-surface-2 px-4 py-2 text-xs text-fg-2">
         File settings match current settings — nothing to change.
       </div>
     );
   }
   return (
-    <div className="border-b border-slate-200 bg-sky-50 px-4 py-2 text-xs text-sky-900">
+    <div className="border-b border-line bg-sky-50 dark:bg-sky-950/40 px-4 py-2 text-xs text-sky-900 dark:text-sky-200">
       <button
         onClick={() => setOpen(o => !o)}
         className="font-medium hover:underline"
@@ -257,7 +257,7 @@ function ParameterDiff({ schedule }: { schedule: ParsedSchedule }) {
       </button>
       {open && (
         <table className="mt-2 min-w-full text-xs">
-          <thead className="text-left text-sky-700">
+          <thead className="text-left text-sky-700 dark:text-sky-300">
             <tr>
               <th className="py-1 pr-4">Parameter</th>
               <th className="py-1 pr-4">Current</th>

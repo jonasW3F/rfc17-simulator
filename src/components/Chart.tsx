@@ -15,18 +15,31 @@ import { useSim } from "../store";
 
 const CHART_HEIGHT = 240;
 const CHART_MARGIN = { top: 8, right: 12, left: 0, bottom: 4 };
-const GRID = { stroke: "#e2e8f0", strokeDasharray: "3 3" } as const;
-const AXIS_TICK = { fontSize: 11 } as const;
-const LEGEND_STYLE = { fontSize: 11 } as const;
-const TOOLTIP_STYLE = { fontSize: 12 } as const;
 
 export function Chart() {
   const history = useSim(s => s.history);
   const params = useSim(s => s.params);
+  const dark = useSim(s => s.theme === "dark");
+
+  // Recharts takes literal colors, so theme them off the active mode. Series
+  // colors (pink/amber/sky) read fine on both; only the neutrals need swapping.
+  const GRID = { stroke: dark ? "#334155" : "#e2e8f0", strokeDasharray: "3 3" };
+  const AXIS_TICK = { fontSize: 11, fill: dark ? "#94a3b8" : "#475569" };
+  const LEGEND_STYLE = dark ? { fontSize: 11, color: "#cbd5e1" } : { fontSize: 11 };
+  const TOOLTIP_STYLE = dark
+    ? { fontSize: 12, backgroundColor: "#1e293b", border: "1px solid #334155", borderRadius: 6, color: "#e2e8f0" }
+    : { fontSize: 12 };
+  const supplyFill = dark ? "#334155" : "#e2e8f0";
+  const consumptionStroke = dark ? "#e2e8f0" : "#0f172a";
+  const labelFill = {
+    target: dark ? "#fbbf24" : "#a16207",
+    postExpand: dark ? "#38bdf8" : "#0369a1",
+    scaleUp: dark ? "#f87171" : "#b91c1c",
+  };
 
   if (history.length === 0) {
     return (
-      <div className="rounded-xl border border-slate-200 bg-white p-10 text-center text-slate-500">
+      <div className="rounded-xl border border-line bg-surface p-10 text-center text-fg-2">
         No rounds run yet. Add bidders and submit a round to populate the charts.
       </div>
     );
@@ -94,7 +107,7 @@ export function Chart() {
             <Bar
               dataKey="supply"
               name="Supply (num_cores)"
-              fill="#e2e8f0"
+              fill={supplyFill}
               barSize={26}
             />
             <Line
@@ -156,7 +169,7 @@ export function Chart() {
               label={{
                 value: `target (${(params.TARGET_CONSUMPTION_RATE * 100).toFixed(0)}%)`,
                 fontSize: 10,
-                fill: "#a16207",
+                fill: labelFill.target,
                 position: "right",
               }}
             />
@@ -167,7 +180,7 @@ export function Chart() {
               label={{
                 value: `post-expand (${(params.POST_EXPANSION_CONSUMPTION * 100).toFixed(0)}%)`,
                 fontSize: 10,
-                fill: "#0369a1",
+                fill: labelFill.postExpand,
                 position: "right",
               }}
             />
@@ -178,7 +191,7 @@ export function Chart() {
               label={{
                 value: `scale-up (${(params.SCALE_UP_THRESHOLD * 100).toFixed(0)}%)`,
                 fontSize: 10,
-                fill: "#b91c1c",
+                fill: labelFill.scaleUp,
                 position: "right",
               }}
             />
@@ -195,7 +208,7 @@ export function Chart() {
               type="monotone"
               dataKey="consumption_pct"
               name="Consumption"
-              stroke="#0f172a"
+              stroke={consumptionStroke}
               strokeWidth={2}
               dot={{ r: 3 }}
             />
@@ -216,11 +229,11 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
-      <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+    <div className="rounded-xl border border-line bg-surface p-4">
+      <h3 className="text-sm font-semibold uppercase tracking-wide text-fg-2">
         {title}
       </h3>
-      {subtitle && <p className="mb-2 text-xs text-slate-400">{subtitle}</p>}
+      {subtitle && <p className="mb-2 text-xs text-muted">{subtitle}</p>}
       {children}
     </div>
   );

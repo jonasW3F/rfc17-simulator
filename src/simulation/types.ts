@@ -23,11 +23,33 @@ export interface Parameters {
   // Validator scaling (amendment §Cores and Validators)
   val_per_core: number;
   MIN_VALIDATORS: number;
+  /**
+   * Fixed system cores (e.g. system parachains) that are NOT auctioned on the
+   * market but still require val_per_core validators each. They sit outside the
+   * dynamic supply rule entirely; they only add to the active validator count:
+   *   active_validators = max(MIN_VALIDATORS, (num_cores + SYSTEM_CORES) × val_per_core)
+   */
+  SYSTEM_CORES: number;
 
-  // Validator economics (each round ≈ one BULK_PERIOD ≈ 28 days ≈ 1 month)
-  OPERATIONAL_COST_USD_PER_VALIDATOR: number;
+  // Validator economics (each round ≈ one BULK_PERIOD ≈ 28 days ≈ 1 month).
+  // NOTE: both lines below are protocol-paid *income* to the validator, not
+  // expenses the validator bears. REWARD_FOR_OPERATIONAL_COSTS is a USD-
+  // denominated payment intended to cover the validator's real-world operating
+  // costs; STAKE_INCENTIVES is the DOT-denominated staking reward. The
+  // validator's actual operating cost is not currently modelled here.
+  REWARD_FOR_OPERATIONAL_COSTS_USD_PER_VALIDATOR: number;
   STAKE_INCENTIVES_DOT_PER_VALIDATOR: number;
   DOT_USD_RATE: number; // USD per 1 DOT — used to combine USD and DOT figures
+  /**
+   * Fraction of a validator's per-round income that is profit (free capital).
+   * A homogeneous validator cluster will bid up to this profit to secure the
+   * cores that activate its validators, so it sets the validator floor price:
+   *   P* = val_per_core × VALIDATOR_PROFIT_MARGIN × payout_per_validator_DOT
+   * where payout_per_validator_DOT = STAKE_INCENTIVES_DOT_PER_VALIDATOR
+   *   + REWARD_FOR_OPERATIONAL_COSTS_USD_PER_VALIDATOR / DOT_USD_RATE.
+   * P* is static in num_cores (no reward dilution is modelled).
+   */
+  VALIDATOR_PROFIT_MARGIN: number;
 
   // Initial state
   initial_num_cores: number;
@@ -37,7 +59,7 @@ export interface Parameters {
 export const DEFAULT_PARAMETERS: Parameters = {
   K: 2.5,
   P_MIN: 1,
-  MIN_INCREMENT: 100,
+  MIN_INCREMENT: 300,
   PRICE_MULTIPLIER: 3,
   MIN_OPENING_PRICE: 150,
   TARGET_CONSUMPTION_RATE: 0.8,
@@ -52,8 +74,13 @@ export const DEFAULT_PARAMETERS: Parameters = {
   MAX_CORES: 100,
   val_per_core: 5,
   MIN_VALIDATORS: 250,
-  OPERATIONAL_COST_USD_PER_VALIDATOR: 2000,
-  STAKE_INCENTIVES_DOT_PER_VALIDATOR: 670,
+  SYSTEM_CORES: 19,
+  // 0 during the current transitionary period: no USD-denominated reward is
+  // paid; validators are compensated entirely through the DOT staking
+  // incentive below.
+  REWARD_FOR_OPERATIONAL_COSTS_USD_PER_VALIDATOR: 0,
+  STAKE_INCENTIVES_DOT_PER_VALIDATOR: 1726,
+  VALIDATOR_PROFIT_MARGIN: 0.2,
   DOT_USD_RATE: 2,
   initial_num_cores: 50,
   initial_reserve_price: 50,

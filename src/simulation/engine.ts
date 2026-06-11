@@ -6,6 +6,7 @@ import type {
   RoundResult,
   TenantInfo,
 } from "./types";
+import { validatorFloorPrice } from "./validators";
 
 export interface SimulationState {
   round: number;
@@ -176,8 +177,25 @@ export function runRound(
     recentWindow.reduce((s, v) => s + v, 0) / recentWindow.length;
   const rolling_avg_consumption = num_cores > 0 ? avg_sold / num_cores : 0;
 
+  // Genuine-demand gate (validator-entry defence): expansion grows the active
+  // validator set, which a homogeneous validator cluster could exploit by
+  // buying cores to activate itself. A cluster never bids above its marginal
+  // profit per core, P* = val_per_core × VALIDATOR_PROFIT_MARGIN × payout. We
+  // gate on the RESERVE price, not the clearing price: a bidder can only win
+  // when the reserve ≤ its WTP, so once reserve_price > P* the cluster is
+  // locked out of the auction entirely. Requiring reserve_price > P* to expand
+  // therefore guarantees the saturation is genuine *and* that the post-
+  // expansion reserve stays above P* — so validators can't scoop the freed
+  // slack cheaply the round after an expansion. (Using clearing instead would
+  // leave a window: clearing can spike above P* while the reserve is still low,
+  // then fall back below P* post-expansion, letting validators buy in.) The
+  // cost is a slower first expansion: the sticky reserve must climb to P*.
+  const validatorFloor = validatorFloorPrice(params);
   let raw_target: number;
-  if (consumption_rate >= params.SCALE_UP_THRESHOLD) {
+  if (
+    consumption_rate >= params.SCALE_UP_THRESHOLD &&
+    state.reserve_price > validatorFloor
+  ) {
     // Size supply so this round's sold cores represent POST_EXPANSION_CONSUMPTION
     // of the new supply. Because that target sits above TARGET_CONSUMPTION_RATE,
     // the next round (if demand persists) stays above the price-rule's target
@@ -211,9 +229,11 @@ export function runRound(
   const new_sales_count = cores_sold - renewals_count;
 
   // Active validator set serving the current round's supply.
+  // System cores sit outside the market but still require val_per_core
+  // validators each, so they add to the active set alongside the market cores.
   const active_validators = Math.max(
     params.MIN_VALIDATORS,
-    num_cores * params.val_per_core
+    (num_cores + params.SYSTEM_CORES) * params.val_per_core
   );
 
   return {

@@ -57,10 +57,29 @@ export function Specification() {
         />
       </Section>
 
-      <Section title="3a. Supply expansion (consumption ≥ SCALE_UP_THRESHOLD)">
+      <Section title="3a. Supply expansion (saturation + genuine-demand gate)">
+        <Note>
+          Expansion grows the active validator set, which a validator cluster
+          could exploit by buying cores to activate itself. The gate keys off
+          the <em>reserve</em> price, not the clearing price: a bidder can only
+          win when the reserve ≤ its WTP, so once reserve_price &gt; P* (the
+          validator marginal profit per core) the cluster is locked out of the
+          auction. Gating on the reserve means expansion is always genuine and
+          the post-expansion reserve stays above P*, so validators cannot scoop
+          freed slack cheaply the next round. The trade-off is a slower first
+          expansion (the sticky reserve must climb to P*).
+        </Note>
         <Formula
           lines={[
-            `if consumption_rate ≥ SCALE_UP_THRESHOLD = ${p.SCALE_UP_THRESHOLD}:`,
+            `P* (DOT/core) = val_per_core × VALIDATOR_PROFIT_MARGIN × payout_per_validator`,
+            `              = ${p.val_per_core} × ${p.VALIDATOR_PROFIT_MARGIN} × ${(
+              p.STAKE_INCENTIVES_DOT_PER_VALIDATOR +
+              (p.DOT_USD_RATE > 0
+                ? p.REWARD_FOR_OPERATIONAL_COSTS_USD_PER_VALIDATOR / p.DOT_USD_RATE
+                : 0)
+            ).toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
+            ``,
+            `if consumption_rate ≥ SCALE_UP_THRESHOLD (${p.SCALE_UP_THRESHOLD}) AND reserve_price > P*:`,
             `    num_cores_next = ceil(cores_sold / POST_EXPANSION_CONSUMPTION)`,
             `                   = ceil(cores_sold / ${p.POST_EXPANSION_CONSUMPTION})`,
           ]}
@@ -89,29 +108,34 @@ export function Specification() {
       </Section>
 
       <Section title="4. Validator-set scaling">
+        <Note>
+          SYSTEM_CORES are fixed cores outside the market (e.g. system
+          parachains) that still each require val_per_core validators. They add
+          to the active set but never enter the dynamic supply rule.
+        </Note>
         <Formula
           lines={[
-            `active_validators = max(MIN_VALIDATORS, num_cores × val_per_core)`,
-            `                  = max(${p.MIN_VALIDATORS}, num_cores × ${p.val_per_core})`,
+            `active_validators = max(MIN_VALIDATORS, (num_cores + SYSTEM_CORES) × val_per_core)`,
+            `                  = max(${p.MIN_VALIDATORS}, (num_cores + ${p.SYSTEM_CORES}) × ${p.val_per_core})`,
           ]}
         />
       </Section>
 
       <Section title="5. Economic accounting (per round)">
         <Note>
-          Both lines are protocol outflows — STAKE_INCENTIVES paid in DOT,
-          OPERATIONAL_COST paid in a USD-denominated stablecoin.
+          Both lines are protocol-paid income to validators — STAKE_INCENTIVES
+          in DOT, REWARD_FOR_OPERATIONAL_COSTS in a USD-denominated stablecoin.
         </Note>
         <Formula
           lines={[
             `stake_incentives_round (DOT) = active_validators × STAKE_INCENTIVES_DOT_PER_VALIDATOR`,
             `                             = active_validators × ${p.STAKE_INCENTIVES_DOT_PER_VALIDATOR}`,
             ``,
-            `operational_cost_round (USD) = active_validators × OPERATIONAL_COST_USD_PER_VALIDATOR`,
-            `                             = active_validators × ${p.OPERATIONAL_COST_USD_PER_VALIDATOR}`,
+            `ops_reward_round (USD)       = active_validators × REWARD_FOR_OPERATIONAL_COSTS_USD_PER_VALIDATOR`,
+            `                             = active_validators × ${p.REWARD_FOR_OPERATIONAL_COSTS_USD_PER_VALIDATOR}`,
             ``,
-            `protocol_costs_round (USD)   = operational_cost_round + stake_incentives_round × DOT_USD_RATE`,
-            `                             = operational_cost_round + stake_incentives_round × ${p.DOT_USD_RATE}`,
+            `protocol_costs_round (USD)   = ops_reward_round + stake_incentives_round × DOT_USD_RATE`,
+            `                             = ops_reward_round + stake_incentives_round × ${p.DOT_USD_RATE}`,
             ``,
             `protocol_revenue_round (USD) = revenue × DOT_USD_RATE`,
             `                             = revenue × ${p.DOT_USD_RATE}`,
@@ -122,7 +146,7 @@ export function Specification() {
       </Section>
 
       <Section title="6. Simulator-vs-spec deviations">
-        <ul className="ml-5 list-disc text-sm text-slate-600 space-y-2">
+        <ul className="ml-5 list-disc text-sm text-fg-2 space-y-2">
           <li>
             No separate renewal phase. All bidders re-bid in a single auction
             each round.
@@ -150,11 +174,11 @@ export function Specification() {
 
 function Intro() {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
-      <h2 className="text-base font-semibold text-ink">
+    <div className="rounded-xl border border-line bg-surface p-4">
+      <h2 className="text-base font-semibold text-fg">
         Rules the simulator applies
       </h2>
-      <p className="mt-1 text-sm text-slate-600">
+      <p className="mt-1 text-sm text-fg-2">
         Formulas below are evaluated with the current parameter values.
         Changing settings updates them in real time.
       </p>
@@ -170,8 +194,8 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
-      <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+    <section className="rounded-xl border border-line bg-surface p-4 space-y-3">
+      <h3 className="text-sm font-semibold uppercase tracking-wide text-fg-2">
         {title}
       </h3>
       {children}
@@ -181,14 +205,14 @@ function Section({
 
 function Formula({ lines }: { lines: string[] }) {
   return (
-    <pre className="rounded-md bg-slate-50 border border-slate-200 p-3 text-xs font-mono text-slate-800 overflow-x-auto whitespace-pre">
+    <pre className="rounded-md bg-surface-2 border border-line p-3 text-xs font-mono text-fg overflow-x-auto whitespace-pre">
       {lines.join("\n")}
     </pre>
   );
 }
 
 function Note({ children }: { children: React.ReactNode }) {
-  return <p className="text-sm text-slate-600">{children}</p>;
+  return <p className="text-sm text-fg-2">{children}</p>;
 }
 
 function CurrentParameters({ params }: { params: Parameters }) {
@@ -219,9 +243,11 @@ function CurrentParameters({ params }: { params: Parameters }) {
       keys: [
         "val_per_core",
         "MIN_VALIDATORS",
-        "OPERATIONAL_COST_USD_PER_VALIDATOR",
+        "SYSTEM_CORES",
+        "REWARD_FOR_OPERATIONAL_COSTS_USD_PER_VALIDATOR",
         "STAKE_INCENTIVES_DOT_PER_VALIDATOR",
         "DOT_USD_RATE",
+        "VALIDATOR_PROFIT_MARGIN",
       ],
     },
     {
@@ -231,22 +257,22 @@ function CurrentParameters({ params }: { params: Parameters }) {
   ];
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4">
-      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+    <section className="rounded-xl border border-line bg-surface p-4">
+      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-fg-2">
         Current parameter values
       </h3>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {groups.map(g => (
           <div key={g.title}>
-            <div className="mb-1 text-xs font-medium text-slate-700">
+            <div className="mb-1 text-xs font-medium text-fg-2">
               {g.title}
             </div>
             <table className="min-w-full text-xs font-mono">
               <tbody>
                 {g.keys.map(k => (
                   <tr key={k}>
-                    <td className="py-0.5 pr-3 text-slate-500">{k}</td>
-                    <td className="py-0.5 text-slate-900">
+                    <td className="py-0.5 pr-3 text-fg-2">{k}</td>
+                    <td className="py-0.5 text-fg">
                       {String(params[k])}
                     </td>
                   </tr>
