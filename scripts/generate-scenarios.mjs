@@ -25,6 +25,10 @@ const PARAMETERS = {
   SCALE_DOWN_WINDOW: 3,
   MIN_CORES: 45,
   MAX_CORES: 100,
+  // Zero validator payout → per-core marginal cost = 0 → the expansion gate
+  // (clearing_price ≥ marginal cost) always passes. These scenarios test the
+  // base supply rule in isolation, with the marginal-cost gate disabled.
+  STAKE_INCENTIVES_DOT_PER_VALIDATOR: 0,
   initial_num_cores: 50,
   initial_reserve_price: 50,
 };

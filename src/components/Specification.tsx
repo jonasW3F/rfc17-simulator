@@ -57,29 +57,35 @@ export function Specification() {
         />
       </Section>
 
-      <Section title="3a. Supply expansion (saturation + genuine-demand gate)">
+      <Section title="3a. Supply expansion (saturation + marginal-cost gate)">
         <Note>
-          Expansion grows the active validator set, which a validator cluster
-          could exploit by buying cores to activate itself. The gate keys off
-          the <em>reserve</em> price, not the clearing price: a bidder can only
-          win when the reserve ≤ its WTP, so once reserve_price &gt; P* (the
-          validator marginal profit per core) the cluster is locked out of the
-          auction. Gating on the reserve means expansion is always genuine and
-          the post-expansion reserve stays above P*, so validators cannot scoop
-          freed slack cheaply the next round. The trade-off is a slower first
-          expansion (the sticky reserve must climb to P*).
+          Adding a core activates val_per_core validators the protocol must pay,
+          so a core is only worth adding when the income it earns covers that
+          payout. The income indicator is the <em>clearing</em> (closing) price;
+          the marginal cost is val_per_core × per-validator payout. Expansion
+          fires only when clearing_price ≥ the marginal cost. This also blocks
+          validator self-dealing: a validator cluster never bids above its own
+          profit (a fraction of payout), which is below the full per-core cost,
+          so it can never lift the clearing price to the threshold on its own.
         </Note>
         <Formula
           lines={[
-            `P* (DOT/core) = val_per_core × VALIDATOR_PROFIT_MARGIN × payout_per_validator`,
-            `              = ${p.val_per_core} × ${p.VALIDATOR_PROFIT_MARGIN} × ${(
+            `payout_per_validator = STAKE_INCENTIVES + REWARD_FOR_OPS / DOT_USD_RATE`,
+            `core_marginal_cost   = val_per_core × payout_per_validator`,
+            `                     = ${p.val_per_core} × ${(
               p.STAKE_INCENTIVES_DOT_PER_VALIDATOR +
               (p.DOT_USD_RATE > 0
                 ? p.REWARD_FOR_OPERATIONAL_COSTS_USD_PER_VALIDATOR / p.DOT_USD_RATE
                 : 0)
-            ).toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
+            ).toLocaleString(undefined, { maximumFractionDigits: 2 })} = ${(
+              p.val_per_core *
+              (p.STAKE_INCENTIVES_DOT_PER_VALIDATOR +
+                (p.DOT_USD_RATE > 0
+                  ? p.REWARD_FOR_OPERATIONAL_COSTS_USD_PER_VALIDATOR / p.DOT_USD_RATE
+                  : 0))
+            ).toLocaleString(undefined, { maximumFractionDigits: 2 })} DOT/core`,
             ``,
-            `if consumption_rate ≥ SCALE_UP_THRESHOLD (${p.SCALE_UP_THRESHOLD}) AND reserve_price > P*:`,
+            `if consumption_rate ≥ SCALE_UP_THRESHOLD (${p.SCALE_UP_THRESHOLD}) AND clearing_price ≥ core_marginal_cost:`,
             `    num_cores_next = ceil(cores_sold / POST_EXPANSION_CONSUMPTION)`,
             `                   = ceil(cores_sold / ${p.POST_EXPANSION_CONSUMPTION})`,
           ]}
@@ -247,7 +253,6 @@ function CurrentParameters({ params }: { params: Parameters }) {
         "REWARD_FOR_OPERATIONAL_COSTS_USD_PER_VALIDATOR",
         "STAKE_INCENTIVES_DOT_PER_VALIDATOR",
         "DOT_USD_RATE",
-        "VALIDATOR_PROFIT_MARGIN",
       ],
     },
     {

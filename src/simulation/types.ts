@@ -37,19 +37,11 @@ export interface Parameters {
   // denominated payment intended to cover the validator's real-world operating
   // costs; STAKE_INCENTIVES is the DOT-denominated staking reward. The
   // validator's actual operating cost is not currently modelled here.
+  // Together they set the per-core marginal cost (val_per_core × payout) that
+  // gates supply expansion — see coreMarginalCostDot in validators.ts.
   REWARD_FOR_OPERATIONAL_COSTS_USD_PER_VALIDATOR: number;
   STAKE_INCENTIVES_DOT_PER_VALIDATOR: number;
   DOT_USD_RATE: number; // USD per 1 DOT — used to combine USD and DOT figures
-  /**
-   * Fraction of a validator's per-round income that is profit (free capital).
-   * A homogeneous validator cluster will bid up to this profit to secure the
-   * cores that activate its validators, so it sets the validator floor price:
-   *   P* = val_per_core × VALIDATOR_PROFIT_MARGIN × payout_per_validator_DOT
-   * where payout_per_validator_DOT = STAKE_INCENTIVES_DOT_PER_VALIDATOR
-   *   + REWARD_FOR_OPERATIONAL_COSTS_USD_PER_VALIDATOR / DOT_USD_RATE.
-   * P* is static in num_cores (no reward dilution is modelled).
-   */
-  VALIDATOR_PROFIT_MARGIN: number;
 
   // Initial state
   initial_num_cores: number;
@@ -80,7 +72,6 @@ export const DEFAULT_PARAMETERS: Parameters = {
   // incentive below.
   REWARD_FOR_OPERATIONAL_COSTS_USD_PER_VALIDATOR: 0,
   STAKE_INCENTIVES_DOT_PER_VALIDATOR: 1726,
-  VALIDATOR_PROFIT_MARGIN: 0.2,
   DOT_USD_RATE: 2,
   initial_num_cores: 50,
   initial_reserve_price: 50,

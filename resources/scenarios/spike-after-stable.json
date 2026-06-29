@@ -14,7 +14,7 @@
     "SCALE_DOWN_WINDOW": 3,
     "MIN_CORES": 45,
     "MAX_CORES": 100,
-    "VALIDATOR_PROFIT_MARGIN": 0,
+    "STAKE_INCENTIVES_DOT_PER_VALIDATOR": 0,
     "initial_num_cores": 50,
     "initial_reserve_price": 50
   },

@@ -6,7 +6,7 @@ import type {
   RoundResult,
   TenantInfo,
 } from "./types";
-import { validatorFloorPrice } from "./validators";
+import { coreMarginalCostDot } from "./validators";
 
 export interface SimulationState {
   round: number;
@@ -177,24 +177,21 @@ export function runRound(
     recentWindow.reduce((s, v) => s + v, 0) / recentWindow.length;
   const rolling_avg_consumption = num_cores > 0 ? avg_sold / num_cores : 0;
 
-  // Genuine-demand gate (validator-entry defence): expansion grows the active
-  // validator set, which a homogeneous validator cluster could exploit by
-  // buying cores to activate itself. A cluster never bids above its marginal
-  // profit per core, P* = val_per_core × VALIDATOR_PROFIT_MARGIN × payout. We
-  // gate on the RESERVE price, not the clearing price: a bidder can only win
-  // when the reserve ≤ its WTP, so once reserve_price > P* the cluster is
-  // locked out of the auction entirely. Requiring reserve_price > P* to expand
-  // therefore guarantees the saturation is genuine *and* that the post-
-  // expansion reserve stays above P* — so validators can't scoop the freed
-  // slack cheaply the round after an expansion. (Using clearing instead would
-  // leave a window: clearing can spike above P* while the reserve is still low,
-  // then fall back below P* post-expansion, letting validators buy in.) The
-  // cost is a slower first expansion: the sticky reserve must climb to P*.
-  const validatorFloor = validatorFloorPrice(params);
+  // Marginal-cost gate (chain solvency): adding a core activates val_per_core
+  // validators the protocol must pay, so expansion only makes sense when the
+  // income a core earns covers that payout. The income indicator is the
+  // clearing (closing) price; the marginal cost is val_per_core × per-validator
+  // payout. Expansion fires only when clearing_price ≥ coreMarginalCost. This
+  // also subsumes the old validator-self-dealing defence: a homogeneous
+  // validator cluster never bids above its profit (a fraction of payout), which
+  // is strictly below the full per-core cost, so it can never push the clearing
+  // price up to the threshold on its own — any saturation that clears the gate
+  // is genuine demand paying more than cost.
+  const marginalCost = coreMarginalCostDot(params);
   let raw_target: number;
   if (
     consumption_rate >= params.SCALE_UP_THRESHOLD &&
-    state.reserve_price > validatorFloor
+    clearing_price >= marginalCost
   ) {
     // Size supply so this round's sold cores represent POST_EXPANSION_CONSUMPTION
     // of the new supply. Because that target sits above TARGET_CONSUMPTION_RATE,

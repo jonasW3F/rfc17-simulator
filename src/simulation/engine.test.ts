@@ -62,7 +62,7 @@ describe("runRound", () => {
       MIN_CORES: 1,
       MIN_OPENING_PRICE: 1000,
       PRICE_MULTIPLIER: 100,
-      VALIDATOR_PROFIT_MARGIN: 0, // isolate the base supply rule (no validator gate)
+      STAKE_INCENTIVES_DOT_PER_VALIDATOR: 0, // payout 0 → marginal cost 0 → gate off
     };
     const state = initialState(params);
     const res = runRound(
@@ -126,7 +126,7 @@ describe("runRound", () => {
       K: 0,
       MIN_INCREMENT: 0,
       SCALE_DOWN_WINDOW: 3,
-      VALIDATOR_PROFIT_MARGIN: 0, // isolate the base supply rule (no validator gate)
+      STAKE_INCENTIVES_DOT_PER_VALIDATOR: 0, // payout 0 → marginal cost 0 → gate off
     };
     let state = initialState(params);
 
@@ -266,11 +266,10 @@ describe("runRound", () => {
     expect(res.next_reserve_price).toBe(150); // 50 + MIN_INCREMENT
   });
 
-  // Validator-entry gate: expansion requires saturation AND reserve_price > P*,
-  // where P* = val_per_core × VALIDATOR_PROFIT_MARGIN × payout. These params
-  // pin P* = 5 × 0.2 × 100 = 100 DOT/core. Gating on the reserve (not clearing)
-  // means that whenever expansion is allowed, the reserve already exceeds a
-  // validator's WTP, so validators are locked out of the auction.
+  // Marginal-cost gate: expansion requires saturation AND
+  // clearing_price ≥ core_marginal_cost, where core_marginal_cost =
+  // val_per_core × per-validator payout. These params pin the marginal cost at
+  // 5 × 100 = 500 DOT/core. The gate keys off the clearing (closing) price.
   const gateBase = {
     ...DEFAULT_PARAMETERS,
     initial_num_cores: 10,
@@ -279,41 +278,44 @@ describe("runRound", () => {
     STAKE_INCENTIVES_DOT_PER_VALIDATOR: 100,
     REWARD_FOR_OPERATIONAL_COSTS_USD_PER_VALIDATOR: 0,
     DOT_USD_RATE: 1,
-    val_per_core: 5,
-    VALIDATOR_PROFIT_MARGIN: 0.2, // P* = 100
+    val_per_core: 5, // marginal cost = 5 × 100 = 500
   };
 
-  it("does NOT expand when saturated and clearing > P* but reserve ≤ P*", () => {
-    // reserve 50 ≤ P*=100; bids clear well above P*, but the gate keys off the
-    // reserve, so a clearing spike alone does not unlock expansion.
+  it("does NOT expand when saturated but clearing < marginal cost", () => {
+    // 12 unit-bids at 200 on 10 cores → clears at 200 < marginal cost 500.
     const params = { ...gateBase, initial_reserve_price: 50 };
-    const res = runRound(
-      initialState(params),
-      { bidders: [{ id: "a", wtp: 200, quantity: 12 }] }, // clears at 200 > P*=100
-      params
-    );
-    expect(res.consumption_rate).toBe(1);
-    expect(res.clearing_price).toBeGreaterThan(100);
-    expect(res.next_num_cores).toBe(res.num_cores); // reserve ≤ P* → no expansion
-  });
-
-  it("expands when saturated and reserve_price > P* (validators locked out)", () => {
-    const params = { ...gateBase, initial_reserve_price: 150 }; // 150 > P*=100
     const res = runRound(
       initialState(params),
       { bidders: [{ id: "a", wtp: 200, quantity: 12 }] },
       params
     );
     expect(res.consumption_rate).toBe(1);
-    expect(res.reserve_price).toBeGreaterThan(100);
+    expect(res.clearing_price).toBe(200);
+    expect(res.next_num_cores).toBe(res.num_cores); // clearing < cost → no expansion
+  });
+
+  it("expands when saturated and clearing ≥ marginal cost", () => {
+    // 12 unit-bids at 600 on 10 cores → clears at 600 ≥ marginal cost 500.
+    const params = { ...gateBase, initial_reserve_price: 50 };
+    const res = runRound(
+      initialState(params),
+      { bidders: [{ id: "a", wtp: 600, quantity: 12 }] },
+      params
+    );
+    expect(res.consumption_rate).toBe(1);
+    expect(res.clearing_price).toBe(600);
     expect(res.next_num_cores).toBeGreaterThan(res.num_cores); // ceil(10/0.9)=12
   });
 
-  it("VALIDATOR_PROFIT_MARGIN = 0 disables the gate (P*=0 → reserve > 0 always)", () => {
-    const params0 = { ...gateBase, initial_reserve_price: 50, VALIDATOR_PROFIT_MARGIN: 0 };
+  it("zero validator payout disables the gate (marginal cost = 0)", () => {
+    const params0 = {
+      ...gateBase,
+      initial_reserve_price: 50,
+      STAKE_INCENTIVES_DOT_PER_VALIDATOR: 0,
+    };
     const res = runRound(
       initialState(params0),
-      { bidders: [{ id: "a", wtp: 80, quantity: 12 }] },
+      { bidders: [{ id: "a", wtp: 80, quantity: 12 }] }, // clears at 80 ≥ cost 0
       params0
     );
     expect(res.next_num_cores).toBeGreaterThan(res.num_cores);

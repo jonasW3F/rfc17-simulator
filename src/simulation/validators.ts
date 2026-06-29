@@ -1,16 +1,15 @@
 import type { Parameters } from "./types";
 
 /**
- * Validator marginal profit per core — the supply-expansion gate threshold.
+ * Core marginal cost — the supply-expansion gate threshold.
  *
- * A homogeneous validator cluster values activating itself on a core at its
- * profit: each validator nets `VALIDATOR_PROFIT_MARGIN` of its per-round payout,
- * and one core activates `val_per_core` validators. So the cluster would never
- * pay more than this per core (`P*`). The engine gates supply expansion on
- * `reserve_price > P*`: once the reserve clears P*, validators are priced out of
- * the auction entirely, so any saturation is genuine demand rather than
- * validators padding consumption to grow their own active set. `P*` is static
- * in `num_cores` (no reward dilution is modelled).
+ * Adding one market core activates `val_per_core` additional validators, each
+ * paid `payout_per_validator` per round by the protocol. So the marginal cost
+ * the chain incurs to bring a core online is `val_per_core × payout`. The
+ * engine gates supply expansion on `clearing_price ≥ coreMarginalCost`:
+ * a core is only added when the income it earns (the clearing/closing price)
+ * covers the validator payout it triggers. `coreMarginalCost` is static in
+ * `num_cores` (no reward dilution is modelled).
  */
 
 /** Per-validator payout per round, in DOT (DOT staking reward + USD ops reward converted to DOT). */
@@ -23,11 +22,9 @@ export function validatorPayoutDot(params: Parameters): number {
 }
 
 /**
- * Validator floor price P* (DOT per core): the most a homogeneous cluster will
- * pay for a core, = val_per_core × profit_margin × per-validator payout.
+ * Marginal cost of one market core (DOT/core): the validator payout the chain
+ * takes on by activating it, = val_per_core × per-validator payout.
  */
-export function validatorFloorPrice(params: Parameters): number {
-  return (
-    params.val_per_core * params.VALIDATOR_PROFIT_MARGIN * validatorPayoutDot(params)
-  );
+export function coreMarginalCostDot(params: Parameters): number {
+  return params.val_per_core * validatorPayoutDot(params);
 }

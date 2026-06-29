@@ -57,8 +57,7 @@ const GROUPS: Group[] = [
       { key: "SYSTEM_CORES", label: "System cores", step: 1, min: 0, hint: "fixed cores outside the market; each still needs val_per_core validators" },
       { key: "REWARD_FOR_OPERATIONAL_COSTS_USD_PER_VALIDATOR", label: "Reward for operational costs (USD / validator / month)", step: 10, min: 0, hint: "protocol-paid income to the validator; 0 during the current transition" },
       { key: "STAKE_INCENTIVES_DOT_PER_VALIDATOR", label: "Stake incentives (DOT / validator / month)", step: 1, min: 0 },
-      { key: "DOT_USD_RATE", label: "DOT/USD rate (USD per 1 DOT)", step: 0.1, min: 0 },
-      { key: "VALIDATOR_PROFIT_MARGIN", label: "Validator profit margin", step: 0.01, min: 0, max: 1, hint: "free-capital fraction of payout; sets the validator floor P* = val_per_core × margin × payout" },
+      { key: "DOT_USD_RATE", label: "DOT/USD rate (USD per 1 DOT)", step: 0.1, min: 0, hint: "with the reward lines, sets the per-core marginal cost = val_per_core × payout that gates expansion" },
     ],
   },
 ];
