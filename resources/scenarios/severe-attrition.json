@@ -12,9 +12,11 @@
     "SCALE_UP_THRESHOLD": 1,
     "POST_EXPANSION_CONSUMPTION": 0.9,
     "SCALE_DOWN_WINDOW": 3,
-    "MIN_CORES": 10,
+    "SYSTEM_CORES": 0,
+    "MIN_VALIDATORS": 50,
     "MAX_CORES": 100,
-    "STAKE_INCENTIVES_DOT_PER_VALIDATOR": 0,
+    "SELF_STAKE_YIELD": 0,
+    "SALARY_USD_PER_VALIDATOR": 0,
     "initial_num_cores": 50,
     "initial_reserve_price": 50
   },

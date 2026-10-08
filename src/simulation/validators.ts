@@ -1,30 +1,60 @@
 import type { Parameters } from "./types";
 
 /**
- * Core marginal cost — the supply-expansion gate threshold.
+ * Validator payout and the budget-neutrality gate.
  *
- * Adding one market core activates `val_per_core` additional validators, each
- * paid `payout_per_validator` per round by the protocol. So the marginal cost
- * the chain incurs to bring a core online is `val_per_core × payout`. The
- * engine gates supply expansion on `clearing_price ≥ coreMarginalCost`:
- * a core is only added when the income it earns (the clearing/closing price)
- * covers the validator payout it triggers. `coreMarginalCost` is static in
- * `num_cores` (no reward dilution is modelled).
+ * Under the metanode budget model every active validator is paid two lines:
+ *   1. a self-stake incentive in DOT — the budget guarantees a yield of
+ *      SELF_STAKE_YIELD on a self-stake of SELF_STAKE_T_DOT, and
+ *   2. a dotUSD salary, minted by the DAP against its own DOT at
+ *      COLLATERAL_RATIO. The DOT is locked rather than spent, but it is
+ *      committed for the whole issuance step and so counts against the budget.
+ *
+ * Adding one market core activates `val_per_core` validators. For the
+ * expansion to be budget-neutral, the income the core earns (the clearing
+ * price, which flows to the DAP buffer) must cover the DOT the DAP commits
+ * for those validators: the self-stake top-up that keeps the enlarged set at
+ * the guaranteed yield, plus the collateral behind their salaries. The engine
+ * gates expansion on `clearing_price ≥ coreMarginalCostDot`.
  */
 
-/** Per-validator payout per round, in DOT (DOT staking reward + USD ops reward converted to DOT). */
+/** One round ≈ one BULK_PERIOD ≈ one month. */
+export const ROUNDS_PER_YEAR = 12;
+
+/** Self-stake incentive per validator per round, in DOT (yield × T / 12). */
+export function selfStakeIncentiveDot(params: Parameters): number {
+  return (params.SELF_STAKE_YIELD * params.SELF_STAKE_T_DOT) / ROUNDS_PER_YEAR;
+}
+
+/** dotUSD salary per validator per round, expressed in DOT at the current rate. */
+export function salaryDot(params: Parameters): number {
+  return params.DOT_USD_RATE > 0
+    ? params.SALARY_USD_PER_VALIDATOR / params.DOT_USD_RATE
+    : 0;
+}
+
+/** DOT the DAP locks per validator per round to mint that salary. */
+export function salaryCollateralDot(params: Parameters): number {
+  return params.COLLATERAL_RATIO * salaryDot(params);
+}
+
+/** What a validator receives per round, in DOT-equivalent (self-stake + salary). */
 export function validatorPayoutDot(params: Parameters): number {
-  const opsRewardDot =
-    params.DOT_USD_RATE > 0
-      ? params.REWARD_FOR_OPERATIONAL_COSTS_USD_PER_VALIDATOR / params.DOT_USD_RATE
-      : 0;
-  return params.STAKE_INCENTIVES_DOT_PER_VALIDATOR + opsRewardDot;
+  return selfStakeIncentiveDot(params) + salaryDot(params);
 }
 
 /**
- * Marginal cost of one market core (DOT/core): the validator payout the chain
- * takes on by activating it, = val_per_core × per-validator payout.
+ * What the protocol commits per validator per round, in DOT: the self-stake
+ * incentive (paid out) plus the collateral locked behind the salary.
+ */
+export function validatorCommittedDot(params: Parameters): number {
+  return selfStakeIncentiveDot(params) + salaryCollateralDot(params);
+}
+
+/**
+ * Marginal cost of one market core (DOT/core): the DOT the DAP commits by
+ * activating `val_per_core` more validators. Static in `num_cores`.
  */
 export function coreMarginalCostDot(params: Parameters): number {
-  return params.val_per_core * validatorPayoutDot(params);
+  return params.val_per_core * validatorCommittedDot(params);
 }

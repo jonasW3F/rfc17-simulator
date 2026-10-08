@@ -34,6 +34,7 @@ export function ManualMode() {
       <RoundContext
         round={state.round}
         numCores={state.num_cores}
+        systemCores={params.SYSTEM_CORES}
         reservePrice={state.reserve_price}
         openingPrice={opening}
         tenantsCount={tenantsCount}
@@ -71,7 +72,7 @@ export function ManualMode() {
         <div className="ml-auto flex items-center gap-3">
           <span className="text-sm text-fg-2">
             Total demand: <span className="font-mono font-semibold">{totalDemand}</span> /{" "}
-            <span className="font-mono">{state.num_cores}</span> cores
+            <span className="font-mono">{state.num_cores}</span> market cores
           </span>
           <button
             onClick={submitRound}
@@ -92,14 +93,16 @@ export function ManualMode() {
 function RoundContext(props: {
   round: number;
   numCores: number;
+  systemCores: number;
   reservePrice: number;
   openingPrice: number;
   tenantsCount: number;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-3 rounded-xl border border-line bg-surface p-4 md:grid-cols-5">
+    <div className="grid grid-cols-2 gap-3 rounded-xl border border-line bg-surface p-4 md:grid-cols-6">
       <Metric label="Round" value={props.round} />
-      <Metric label="num_cores" value={props.numCores} />
+      <Metric label="num_cores (market)" value={props.numCores} />
+      <Metric label="system cores" value={props.systemCores} />
       <Metric label="reserve_price" value={`${fmt(props.reservePrice)} DOT`} />
       <Metric label="opening_price" value={`${fmt(props.openingPrice)} DOT`} />
       <Metric label="tenants" value={props.tenantsCount} />

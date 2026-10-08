@@ -17,34 +17,48 @@ export interface Parameters {
    */
   POST_EXPANSION_CONSUMPTION: number;
   SCALE_DOWN_WINDOW: number; // rounds in the rolling-avg contraction window
-  MIN_CORES: number;
+  /**
+   * Hard ceiling on num_cores (market cores). The floor is not a parameter:
+   * it is ceil(MIN_VALIDATORS / val_per_core) − SYSTEM_CORES, the market
+   * offer left after the consensus-minimum validator set's cores are assigned
+   * to system parachains — see minMarketCores in cores.ts.
+   */
   MAX_CORES: number;
 
   // Validator scaling (amendment §Cores and Validators)
   val_per_core: number;
   MIN_VALIDATORS: number;
   /**
-   * Fixed system cores (e.g. system parachains) that are NOT auctioned on the
-   * market but still require val_per_core validators each. They sit outside the
-   * dynamic supply rule entirely; they only add to the active validator count:
+   * Cores assigned to system parachains, outside the market. They are never
+   * sold and do not enter consumption (consumption = cores_sold / num_cores,
+   * as the broker pallet computes it). They do need validators:
    *   active_validators = max(MIN_VALIDATORS, (num_cores + SYSTEM_CORES) × val_per_core)
+   * and they reduce the market floor: ceil(MIN_VALIDATORS / val_per_core) − SYSTEM_CORES.
+   * They are funded by the budget inside the validator floor, not by the market.
    */
   SYSTEM_CORES: number;
 
-  // Validator economics (each round ≈ one BULK_PERIOD ≈ 28 days ≈ 1 month).
-  // NOTE: both lines below are protocol-paid *income* to the validator, not
-  // expenses the validator bears. REWARD_FOR_OPERATIONAL_COSTS is a USD-
-  // denominated payment intended to cover the validator's real-world operating
-  // costs; STAKE_INCENTIVES is the DOT-denominated staking reward. The
-  // validator's actual operating cost is not currently modelled here.
-  // Together they set the per-core marginal cost (val_per_core × payout) that
-  // gates supply expansion — see coreMarginalCostDot in validators.ts.
-  REWARD_FOR_OPERATIONAL_COSTS_USD_PER_VALIDATOR: number;
-  STAKE_INCENTIVES_DOT_PER_VALIDATOR: number;
-  DOT_USD_RATE: number; // USD per 1 DOT — used to combine USD and DOT figures
+  // Validator payout (metanode budget model; each round ≈ one month).
+  // Every active validator is paid two protocol-funded lines:
+  //   1. a self-stake incentive in DOT: SELF_STAKE_YIELD × SELF_STAKE_T_DOT per
+  //      year (the yield the budget guarantees on a self-stake of T), and
+  //   2. a salary in dotUSD, minted by the DAP against its own DOT at
+  //      COLLATERAL_RATIO. The DOT is locked, not spent, but it is committed
+  //      for the whole issuance step, so it counts as budget.
+  // Both are income to the validator. The DOT the protocol *commits* per
+  // validator per round is
+  //   committed = SELF_STAKE_YIELD × SELF_STAKE_T_DOT / 12
+  //             + COLLATERAL_RATIO × SALARY_USD_PER_VALIDATOR / DOT_USD_RATE
+  // and the per-core marginal cost (val_per_core × committed) gates supply
+  // expansion — see coreMarginalCostDot in validators.ts.
+  SELF_STAKE_YIELD: number; // annual yield guaranteed on self-stake at T (e.g. 0.30)
+  SELF_STAKE_T_DOT: number; // self-stake threshold T, in DOT (e.g. 30 000)
+  SALARY_USD_PER_VALIDATOR: number; // dotUSD salary per validator per round (month)
+  COLLATERAL_RATIO: number; // DOT locked per $1 of dotUSD minted (e.g. 2.0 = 200%)
+  DOT_USD_RATE: number; // USD per 1 DOT — converts the USD salary into DOT
 
   // Initial state
-  initial_num_cores: number;
+  initial_num_cores: number; // market cores
   initial_reserve_price: number;
 }
 
@@ -58,22 +72,21 @@ export const DEFAULT_PARAMETERS: Parameters = {
   SCALE_UP_THRESHOLD: 1.0,
   POST_EXPANSION_CONSUMPTION: 0.9,
   SCALE_DOWN_WINDOW: 3,
-  // 45 is the smallest integer floor such that a saturated round's
-  // ceil(n / POST_EXPANSION_CONSUMPTION) − n adds ≥ 5 cores (at n = 45,
-  // ceil(45/0.9) − 45 = 5). Keeps post-collapse recovery from getting stuck
-  // in tiny +1/+2 expansion steps.
-  MIN_CORES: 45,
-  MAX_CORES: 100,
+  MAX_CORES: 81, // market cores; + 19 system = 100 total → 500 validators
   val_per_core: 5,
-  MIN_VALIDATORS: 250,
+  // Metanode budget anchor: 320 validators are needed for consensus at any
+  // price. They serve 320 / 5 = 64 cores; 19 are system cores, so the market
+  // floor is 45. A saturated round at the floor expands by ceil(45/0.9) − 45 = 5.
+  MIN_VALIDATORS: 320,
   SYSTEM_CORES: 19,
-  // 0 during the current transitionary period: no USD-denominated reward is
-  // paid; validators are compensated entirely through the DOT staking
-  // incentive below.
-  REWARD_FOR_OPERATIONAL_COSTS_USD_PER_VALIDATOR: 0,
-  STAKE_INCENTIVES_DOT_PER_VALIDATOR: 1726,
-  DOT_USD_RATE: 2,
-  initial_num_cores: 50,
+  // Metanode budget (v4, Sep 2026): 30% yield at T = 30k DOT → 750 DOT/month;
+  // $2,000/month dotUSD salary minted at 200% collateral; DOT at $1.00.
+  SELF_STAKE_YIELD: 0.3,
+  SELF_STAKE_T_DOT: 30000,
+  SALARY_USD_PER_VALIDATOR: 2000,
+  COLLATERAL_RATIO: 2,
+  DOT_USD_RATE: 1,
+  initial_num_cores: 45, // the market floor (320 validators − 19 system cores)
   initial_reserve_price: 50,
 };
 
@@ -104,7 +117,8 @@ export interface RoundResult {
   round: number;
 
   // Pre-round state
-  num_cores: number;
+  num_cores: number; // market cores offered this round
+  system_cores: number; // SYSTEM_CORES in force this round (outside the market)
   reserve_price: number;
   opening_price: number;
 
@@ -115,18 +129,23 @@ export interface RoundResult {
 
   // Allocation
   allocations: Allocation[];
-  cores_sold: number; // total cores allocated (renewals + new sales)
+  cores_sold: number; // market cores allocated (renewals + new sales)
   new_sales_count: number; // cores allocated to non-tenants
   renewals_count: number; // cores allocated to entities who were tenants at start
-  consumption_rate: number;
-  rolling_avg_consumption: number; // avg over last SCALE_DOWN_WINDOW rounds, used by the supply rule
+  consumption_rate: number; // cores_sold / num_cores (system cores excluded)
+  rolling_avg_consumption: number; // avg sold over window / num_cores
   revenue: number;
 
   // Validator set serving the current round (amendment §Cores and Validators).
   active_validators: number;
+  // Budget-neutrality gate: the per-core marginal cost (DOT) the clearing
+  // price had to cover this round, and whether a saturated round was held
+  // back because it did not.
+  core_marginal_cost: number;
+  expansion_gated: boolean;
 
   // Post-round state propagated to next round
   next_reserve_price: number;
-  next_num_cores: number;
+  next_num_cores: number; // market cores
   next_tenants: Record<string, TenantInfo>;
 }

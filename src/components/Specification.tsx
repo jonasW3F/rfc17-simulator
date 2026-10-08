@@ -1,12 +1,39 @@
 import { useSim } from "../store";
 import type { Parameters } from "../simulation/types";
+import {
+  coreMarginalCostDot,
+  salaryCollateralDot,
+  salaryDot,
+  selfStakeIncentiveDot,
+  validatorCommittedDot,
+} from "../simulation/validators";
+import { minMarketCores, minTotalCores } from "../simulation/cores";
 
 export function Specification() {
   const p = useSim(s => s.params);
+  const n = (x: number) => x.toLocaleString(undefined, { maximumFractionDigits: 2 });
 
   return (
     <div className="space-y-6">
       <Intro />
+
+      <Section title="0. Cores and consumption">
+        <Note>
+          num_cores is the market offer. System cores sit outside it: they are
+          never sold and do not enter consumption (as the broker pallet
+          computes cores_offered / cores_sold), but they need validators and
+          so take cores away from the market floor.
+        </Note>
+        <Formula
+          lines={[
+            `consumption_rate = cores_sold / num_cores`,
+            ``,
+            `cores the validator floor serves = ceil(MIN_VALIDATORS / val_per_core) = ceil(${p.MIN_VALIDATORS} / ${p.val_per_core}) = ${minTotalCores(p)}`,
+            `market floor                     = ${minTotalCores(p)} − SYSTEM_CORES = ${minTotalCores(p)} − ${p.SYSTEM_CORES} = ${minMarketCores(p)}`,
+            `market ceiling                   = MAX_CORES = ${p.MAX_CORES} (+ ${p.SYSTEM_CORES} system = ${p.MAX_CORES + p.SYSTEM_CORES} cores)`,
+          ]}
+        />
+      </Section>
 
       <Section title="1. In-round price discovery (Dutch auction)">
         <Formula
@@ -57,37 +84,36 @@ export function Specification() {
         />
       </Section>
 
-      <Section title="3a. Supply expansion (saturation + marginal-cost gate)">
+      <Section title="3a. Supply expansion (saturation + budget-neutrality gate)">
         <Note>
-          Adding a core activates val_per_core validators the protocol must pay,
-          so a core is only worth adding when the income it earns covers that
-          payout. The income indicator is the <em>clearing</em> (closing) price;
-          the marginal cost is val_per_core × per-validator payout. Expansion
-          fires only when clearing_price ≥ the marginal cost. This also blocks
-          validator self-dealing: a validator cluster never bids above its own
-          profit (a fraction of payout), which is below the full per-core cost,
-          so it can never lift the clearing price to the threshold on its own.
+          Adding a core activates val_per_core validators, and the DAP commits
+          DOT for each of them: the self-stake top-up that keeps the enlarged
+          set at the guaranteed yield, plus the collateral locked behind the
+          dotUSD salary. Coretime revenue flows to the DAP buffer, so a core is
+          only budget-neutral when the income it earns — the <em>clearing</em>{" "}
+          (closing) price — covers that commitment. This also blocks validator
+          self-dealing: a validator cluster never bids above its own profit (a
+          fraction of payout), which is below the full committed cost, so it can
+          never lift the clearing price to the threshold on its own.
         </Note>
         <Formula
           lines={[
-            `payout_per_validator = STAKE_INCENTIVES + REWARD_FOR_OPS / DOT_USD_RATE`,
-            `core_marginal_cost   = val_per_core × payout_per_validator`,
-            `                     = ${p.val_per_core} × ${(
-              p.STAKE_INCENTIVES_DOT_PER_VALIDATOR +
-              (p.DOT_USD_RATE > 0
-                ? p.REWARD_FOR_OPERATIONAL_COSTS_USD_PER_VALIDATOR / p.DOT_USD_RATE
-                : 0)
-            ).toLocaleString(undefined, { maximumFractionDigits: 2 })} = ${(
-              p.val_per_core *
-              (p.STAKE_INCENTIVES_DOT_PER_VALIDATOR +
-                (p.DOT_USD_RATE > 0
-                  ? p.REWARD_FOR_OPERATIONAL_COSTS_USD_PER_VALIDATOR / p.DOT_USD_RATE
-                  : 0))
-            ).toLocaleString(undefined, { maximumFractionDigits: 2 })} DOT/core`,
+            `self_stake_dot     = SELF_STAKE_YIELD × SELF_STAKE_T_DOT / 12`,
+            `                   = ${p.SELF_STAKE_YIELD} × ${n(p.SELF_STAKE_T_DOT)} / 12 = ${n(selfStakeIncentiveDot(p))} DOT/validator`,
+            `salary_dot         = SALARY_USD_PER_VALIDATOR / DOT_USD_RATE`,
+            `                   = ${n(p.SALARY_USD_PER_VALIDATOR)} / ${p.DOT_USD_RATE} = ${n(salaryDot(p))} DOT/validator`,
+            `collateral_dot     = COLLATERAL_RATIO × salary_dot`,
+            `                   = ${p.COLLATERAL_RATIO} × ${n(salaryDot(p))} = ${n(salaryCollateralDot(p))} DOT/validator`,
+            ``,
+            `committed_dot      = self_stake_dot + collateral_dot = ${n(validatorCommittedDot(p))} DOT/validator`,
+            `core_marginal_cost = val_per_core × committed_dot`,
+            `                   = ${p.val_per_core} × ${n(validatorCommittedDot(p))} = ${n(coreMarginalCostDot(p))} DOT/core`,
             ``,
             `if consumption_rate ≥ SCALE_UP_THRESHOLD (${p.SCALE_UP_THRESHOLD}) AND clearing_price ≥ core_marginal_cost:`,
             `    num_cores_next = ceil(cores_sold / POST_EXPANSION_CONSUMPTION)`,
             `                   = ceil(cores_sold / ${p.POST_EXPANSION_CONSUMPTION})`,
+            `else if consumption_rate ≥ SCALE_UP_THRESHOLD:`,
+            `    hold (saturated, but the core would not pay for its validators)`,
           ]}
         />
       </Section>
@@ -107,7 +133,7 @@ export function Specification() {
         <Note>
           Final supply is clamped to{" "}
           <code className="font-mono text-xs">
-            [max(renewals, MIN_CORES = {p.MIN_CORES}), MAX_CORES = {p.MAX_CORES}]
+            [max(renewals, ceil(MIN_VALIDATORS / val_per_core) − SYSTEM_CORES = {minMarketCores(p)}), MAX_CORES = {p.MAX_CORES}]
           </code>
           .
         </Note>
@@ -115,38 +141,39 @@ export function Specification() {
 
       <Section title="4. Validator-set scaling">
         <Note>
-          SYSTEM_CORES are fixed cores outside the market (e.g. system
-          parachains) that still each require val_per_core validators. They add
-          to the active set but never enter the dynamic supply rule.
+          MIN_VALIDATORS is the consensus minimum and is run at any core price,
+          including zero. Validators serve market and system cores alike, so
+          the set is sized on their sum. System cores are funded inside the
+          floor by the budget; cores above the floor must pass the gate.
         </Note>
         <Formula
           lines={[
             `active_validators = max(MIN_VALIDATORS, (num_cores + SYSTEM_CORES) × val_per_core)`,
             `                  = max(${p.MIN_VALIDATORS}, (num_cores + ${p.SYSTEM_CORES}) × ${p.val_per_core})`,
+            `at the floor      = max(${p.MIN_VALIDATORS}, (${minMarketCores(p)} + ${p.SYSTEM_CORES}) × ${p.val_per_core}) = ${Math.max(p.MIN_VALIDATORS, (minMarketCores(p) + p.SYSTEM_CORES) * p.val_per_core)}`,
           ]}
         />
       </Section>
 
-      <Section title="5. Economic accounting (per round)">
+      <Section title="5. Budget accounting (per round, in DOT)">
         <Note>
-          Both lines are protocol-paid income to validators — STAKE_INCENTIVES
-          in DOT, REWARD_FOR_OPERATIONAL_COSTS in a USD-denominated stablecoin.
+          Coretime revenue flows to the DAP buffer. Against it the DAP commits,
+          for every active validator, the self-stake incentive (paid out) and
+          the collateral locked behind the dotUSD salary (locked, not spent, but
+          unavailable for the rest of the issuance step). Debt interest and
+          redemptions are not modelled.
         </Note>
         <Formula
           lines={[
-            `stake_incentives_round (DOT) = active_validators × STAKE_INCENTIVES_DOT_PER_VALIDATOR`,
-            `                             = active_validators × ${p.STAKE_INCENTIVES_DOT_PER_VALIDATOR}`,
+            `self_stake_round (DOT)  = active_validators × self_stake_dot`,
+            `                        = active_validators × ${n(selfStakeIncentiveDot(p))}`,
+            `salaries_round (USD)    = active_validators × SALARY_USD_PER_VALIDATOR`,
+            `                        = active_validators × ${n(p.SALARY_USD_PER_VALIDATOR)}`,
+            `collateral_round (DOT)  = active_validators × collateral_dot`,
+            `                        = active_validators × ${n(salaryCollateralDot(p))}`,
             ``,
-            `ops_reward_round (USD)       = active_validators × REWARD_FOR_OPERATIONAL_COSTS_USD_PER_VALIDATOR`,
-            `                             = active_validators × ${p.REWARD_FOR_OPERATIONAL_COSTS_USD_PER_VALIDATOR}`,
-            ``,
-            `protocol_costs_round (USD)   = ops_reward_round + stake_incentives_round × DOT_USD_RATE`,
-            `                             = ops_reward_round + stake_incentives_round × ${p.DOT_USD_RATE}`,
-            ``,
-            `protocol_revenue_round (USD) = revenue × DOT_USD_RATE`,
-            `                             = revenue × ${p.DOT_USD_RATE}`,
-            ``,
-            `protocol_net_round (USD)     = protocol_revenue_round − protocol_costs_round`,
+            `committed_round (DOT)   = self_stake_round + collateral_round`,
+            `buffer_net_round (DOT)  = revenue − committed_round`,
           ]}
         />
       </Section>
@@ -240,18 +267,19 @@ function CurrentParameters({ params }: { params: Parameters }) {
         "SCALE_UP_THRESHOLD",
         "POST_EXPANSION_CONSUMPTION",
         "SCALE_DOWN_WINDOW",
-        "MIN_CORES",
         "MAX_CORES",
       ],
     },
     {
-      title: "Validator scaling & economics",
+      title: "Validator scaling & budget",
       keys: [
         "val_per_core",
         "MIN_VALIDATORS",
         "SYSTEM_CORES",
-        "REWARD_FOR_OPERATIONAL_COSTS_USD_PER_VALIDATOR",
-        "STAKE_INCENTIVES_DOT_PER_VALIDATOR",
+        "SELF_STAKE_YIELD",
+        "SELF_STAKE_T_DOT",
+        "SALARY_USD_PER_VALIDATOR",
+        "COLLATERAL_RATIO",
         "DOT_USD_RATE",
       ],
     },

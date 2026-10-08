@@ -30,6 +30,7 @@ export function Chart() {
     ? { fontSize: 12, backgroundColor: "#1e293b", border: "1px solid #334155", borderRadius: 6, color: "#e2e8f0" }
     : { fontSize: 12 };
   const supplyFill = dark ? "#334155" : "#e2e8f0";
+  const systemFill = dark ? "#475569" : "#cbd5e1";
   const consumptionStroke = dark ? "#e2e8f0" : "#0f172a";
   const labelFill = {
     target: dark ? "#fbbf24" : "#a16207",
@@ -50,7 +51,8 @@ export function Chart() {
     clearing_price: round2(h.clearing_price),
     reserve_price: round2(h.reserve_price),
     opening_price: round2(h.opening_price),
-    supply: h.num_cores,
+    market_supply: h.num_cores,
+    system_cores: h.system_cores,
     demand: h.total_demand,
     renewed: h.renewals_count,
     new_sales: h.new_sales_count,
@@ -96,7 +98,7 @@ export function Chart() {
         </ResponsiveContainer>
       </ChartCard>
 
-      <ChartCard title="Supply vs demand (cores)" subtitle="Demand line above the supply bar means excess demand.">
+      <ChartCard title="Supply vs demand (cores)" subtitle="Bars stack system cores (outside the market, validators only) on the market offer. Demand above the market segment means excess demand.">
         <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
           <ComposedChart data={data} margin={CHART_MARGIN}>
             <CartesianGrid {...GRID} />
@@ -105,9 +107,17 @@ export function Chart() {
             <Tooltip contentStyle={TOOLTIP_STYLE} />
             <Legend wrapperStyle={LEGEND_STYLE} />
             <Bar
-              dataKey="supply"
-              name="Supply (num_cores)"
+              dataKey="market_supply"
+              name="Market cores (num_cores)"
+              stackId="supply"
               fill={supplyFill}
+              barSize={26}
+            />
+            <Bar
+              dataKey="system_cores"
+              name="System cores"
+              stackId="supply"
+              fill={systemFill}
               barSize={26}
             />
             <Line

@@ -11,6 +11,10 @@ import {
   YAxis,
 } from "recharts";
 import { useSim } from "../store";
+import {
+  salaryCollateralDot,
+  selfStakeIncentiveDot,
+} from "../simulation/validators";
 
 type SortKey = "id" | "totalPaid" | "totalCores" | "rounds" | "avgPrice";
 
@@ -85,36 +89,48 @@ export function Statistics() {
 
       <section>
         <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-fg-2">
-          Validator economics
+          Validator budget
         </h2>
         <p className="mb-3 text-xs text-fg-2">
           Active validators = max({params.MIN_VALIDATORS}, (num_cores +{" "}
-          {params.SYSTEM_CORES} system) × {params.val_per_core}). One round ≈ one
-          month. Both stake incentives (DOT) and operational-cost reward (USD)
-          are paid by the protocol; combined totals are shown in USD-equivalent
-          at the configured DOT/USD rate.
+          {params.SYSTEM_CORES} system) × {params.val_per_core}). System cores
+          are outside the market and not in consumption; their validators are
+          funded by the budget inside the floor. One round ≈ one month. Each validator receives a self-stake incentive in DOT and a
+          dotUSD salary minted by the DAP against its own DOT. Coretime revenue
+          flows to the DAP buffer; "committed" is the DOT the DAP puts up per
+          round (self-stake paid out + collateral locked behind the salaries).
         </p>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <Card label="Avg active validators" value={fmt(economics.avgValidators)} />
-          <Card label="Total revenue (USD-eq.)" value={`$${fmt(economics.totalRevenueUsd)}`} />
-          <Card label="Total stake incentives" value={`${fmt(economics.totalIncentivesDot)} DOT`} />
-          <Card label="Total operational cost" value={`$${fmt(economics.totalOpsUsd)}`} />
-          <Card label="Total protocol cost (USD-eq.)" value={`$${fmt(economics.totalCostUsd)}`} />
+          <Card label="Total revenue" value={`${fmt(economics.totalRevenueDot)} DOT`} />
+          <Card label="Total self-stake incentives" value={`${fmt(economics.totalSelfStakeDot)} DOT`} />
           <Card
-            label="Protocol net (USD-eq.)"
-            value={`$${fmt(economics.protocolNetUsd)}`}
-            tone={economics.protocolNetUsd >= 0 ? "good" : "bad"}
+            label="Total salaries"
+            value={`$${fmt(economics.totalSalaryUsd)}`}
+            hint={`minted as dotUSD; ${fmt(economics.totalCollateralDot)} DOT locked as collateral`}
+          />
+          <Card label="Total committed" value={`${fmt(economics.totalCommittedDot)} DOT`} hint="self-stake + collateral" />
+          <Card
+            label="Buffer net"
+            value={`${fmt(economics.bufferNetDot)} DOT`}
+            tone={economics.bufferNetDot >= 0 ? "good" : "bad"}
+            hint="revenue − committed"
           />
           <Card
             label="Break-even clearing"
             value={`${fmt(economics.breakEvenClearing)} DOT / core`}
-            hint="last round's supply; covers both cost lines"
+            hint="per market core; covers all committed DOT incl. system-core validators"
+          />
+          <Card
+            label="Expansion gate"
+            value={`${fmt(economics.lastMarginalCost)} DOT / core`}
+            hint={`clearing must reach this to add cores; gated ${economics.gatedRounds}× so far`}
           />
         </div>
 
         <div className="mt-4 rounded-xl border border-line bg-surface p-4">
           <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-fg-2">
-            Revenue vs. protocol cost (USD-equivalent per round)
+            Revenue vs. committed DOT per round
           </h3>
           <ResponsiveContainer width="100%" height={260}>
             <ComposedChart
@@ -127,31 +143,31 @@ export function Statistics() {
               <Tooltip contentStyle={chartTooltip} />
               <Legend wrapperStyle={chartLegend} />
               <Bar
-                dataKey="incentives_usd"
-                name="Stake incentives (USD-eq.)"
+                dataKey="self_stake_dot"
+                name="Self-stake incentives (DOT)"
                 stackId="cost"
                 fill="#fca5a5"
                 barSize={22}
               />
               <Bar
-                dataKey="ops_usd"
-                name="Operational-cost reward (USD)"
+                dataKey="collateral_dot"
+                name="Salary collateral locked (DOT)"
                 stackId="cost"
                 fill="#fde68a"
                 barSize={22}
               />
               <Line
                 type="monotone"
-                dataKey="revenue_usd"
-                name="Revenue (USD-eq.)"
+                dataKey="revenue"
+                name="Revenue (DOT)"
                 stroke="#e6007a"
                 strokeWidth={2}
                 dot={{ r: 2 }}
               />
               <Line
                 type="monotone"
-                dataKey="net_usd"
-                name="Net (revenue − total cost)"
+                dataKey="net_dot"
+                name="Buffer net (revenue − committed)"
                 stroke={netStroke}
                 strokeWidth={1.5}
                 strokeDasharray="3 3"
@@ -213,8 +229,9 @@ export function Statistics() {
                   <th className="px-4 py-2">Reserve (DOT)</th>
                   <th className="px-4 py-2">Revenue (DOT)</th>
                   <th className="px-4 py-2">Validators</th>
-                  <th className="px-4 py-2">Total cost (USD-eq.)</th>
-                  <th className="px-4 py-2">Net (USD-eq.)</th>
+                  <th className="px-4 py-2">Committed (DOT)</th>
+                  <th className="px-4 py-2">Buffer net (DOT)</th>
+                  <th className="px-4 py-2">Gate (DOT / core)</th>
                 </tr>
               </thead>
               <tbody>
@@ -228,14 +245,24 @@ export function Statistics() {
                     <td className="px-4 py-1.5 font-mono">{fmt(r.reserve)}</td>
                     <td className="px-4 py-1.5 font-mono">{fmt(r.revenue)}</td>
                     <td className="px-4 py-1.5 font-mono">{r.validators}</td>
-                    <td className="px-4 py-1.5 font-mono">{fmt(r.total_cost_usd)}</td>
+                    <td className="px-4 py-1.5 font-mono">{fmt(r.committed_dot)}</td>
                     <td
                       className={
                         "px-4 py-1.5 font-mono " +
-                        (r.net_usd >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-700 dark:text-rose-400")
+                        (r.net_dot >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-700 dark:text-rose-400")
                       }
                     >
-                      {fmt(r.net_usd)}
+                      {fmt(r.net_dot)}
+                    </td>
+                    <td
+                      className={
+                        "px-4 py-1.5 font-mono " +
+                        (r.gated ? "text-amber-700 dark:text-amber-400" : "")
+                      }
+                      title={r.gated ? "Saturated, but clearing < marginal cost: expansion held" : undefined}
+                    >
+                      {fmt(r.marginal_cost)}
+                      {r.gated ? " ⏸" : ""}
                     </td>
                   </tr>
                 ))}
@@ -358,14 +385,17 @@ function computeEconomics(
   history: ReturnType<typeof useSim.getState>["history"],
   params: ReturnType<typeof useSim.getState>["params"]
 ) {
+  // Per-validator lines under the current parameters (DOT per round).
+  const selfStakePerValidator = selfStakeIncentiveDot(params);
+  const collateralPerValidator = salaryCollateralDot(params);
+
   const perRound = history.map(h => {
     const validators = h.active_validators;
-    const incentives_dot = validators * params.STAKE_INCENTIVES_DOT_PER_VALIDATOR;
-    const incentives_usd = incentives_dot * params.DOT_USD_RATE;
-    const ops_usd = validators * params.REWARD_FOR_OPERATIONAL_COSTS_USD_PER_VALIDATOR;
-    const total_cost_usd = ops_usd + incentives_usd;
-    const revenue_usd = h.revenue * params.DOT_USD_RATE;
-    const net_usd = revenue_usd - total_cost_usd;
+    const self_stake_dot = validators * selfStakePerValidator;
+    const salary_usd = validators * params.SALARY_USD_PER_VALIDATOR;
+    const collateral_dot = validators * collateralPerValidator;
+    const committed_dot = self_stake_dot + collateral_dot;
+    const net_dot = h.revenue - committed_dot;
     return {
       round: h.round,
       supply: h.num_cores,
@@ -373,55 +403,59 @@ function computeEconomics(
       sold: h.cores_sold,
       clearing: h.clearing_price,
       reserve: h.reserve_price,
-      revenue: h.revenue,
+      revenue: round2(h.revenue),
       validators,
-      incentives_dot: round2(incentives_dot),
-      incentives_usd: round2(incentives_usd),
-      ops_usd: round2(ops_usd),
-      total_cost_usd: round2(total_cost_usd),
-      revenue_usd: round2(revenue_usd),
-      net_usd: round2(net_usd),
+      self_stake_dot: round2(self_stake_dot),
+      salary_usd: round2(salary_usd),
+      collateral_dot: round2(collateral_dot),
+      committed_dot: round2(committed_dot),
+      net_dot: round2(net_dot),
+      marginal_cost: round2(h.core_marginal_cost),
+      gated: h.expansion_gated,
     };
   });
 
   const totals = perRound.reduce(
     (acc, r) => {
       acc.validators += r.validators;
-      acc.incentives_dot += r.incentives_dot;
-      acc.ops_usd += r.ops_usd;
-      acc.total_cost_usd += r.total_cost_usd;
-      acc.revenue_usd += r.revenue_usd;
+      acc.self_stake_dot += r.self_stake_dot;
+      acc.salary_usd += r.salary_usd;
+      acc.collateral_dot += r.collateral_dot;
+      acc.committed_dot += r.committed_dot;
+      acc.revenue += r.revenue;
+      acc.gated += r.gated ? 1 : 0;
       return acc;
     },
-    { validators: 0, incentives_dot: 0, ops_usd: 0, total_cost_usd: 0, revenue_usd: 0 }
+    { validators: 0, self_stake_dot: 0, salary_usd: 0, collateral_dot: 0, committed_dot: 0, revenue: 0, gated: 0 }
   );
 
   const n = Math.max(history.length, 1);
   const avgValidators = totals.validators / n;
-  const protocolNetUsd = totals.revenue_usd - totals.total_cost_usd;
+  const bufferNetDot = totals.revenue - totals.committed_dot;
 
-  // Break-even clearing: at the last round's supply, the per-core clearing
-  // price (in DOT) where revenue (supply × clearing in DOT) equals total
-  // protocol cost converted to DOT.
-  const lastSupply = history.at(-1)?.num_cores ?? params.initial_num_cores;
-  const lastValidators = history.at(-1)?.active_validators ?? params.MIN_VALIDATORS;
-  const lastIncentivesDot = lastValidators * params.STAKE_INCENTIVES_DOT_PER_VALIDATOR;
-  const lastOpsDot =
-    params.DOT_USD_RATE > 0
-      ? (lastValidators * params.REWARD_FOR_OPERATIONAL_COSTS_USD_PER_VALIDATOR) / params.DOT_USD_RATE
-      : 0;
-  const breakEvenClearing =
-    lastSupply > 0 ? (lastIncentivesDot + lastOpsDot) / lastSupply : 0;
+  // Break-even clearing: at the last round's market supply, the per-core
+  // clearing price (DOT) where revenue (market cores × clearing) equals the
+  // DOT committed for the whole active set — system cores included, since
+  // the market carries them.
+  const last = history.at(-1);
+  const lastSupply = last?.num_cores ?? params.initial_num_cores;
+  const lastValidators = last?.active_validators ?? params.MIN_VALIDATORS;
+  const lastCommitted = lastValidators * (selfStakePerValidator + collateralPerValidator);
+  const breakEvenClearing = lastSupply > 0 ? lastCommitted / lastSupply : 0;
+  const lastMarginalCost = last?.core_marginal_cost ?? 0;
 
   return {
     perRound,
     avgValidators,
-    totalIncentivesDot: totals.incentives_dot,
-    totalOpsUsd: totals.ops_usd,
-    totalCostUsd: totals.total_cost_usd,
-    totalRevenueUsd: totals.revenue_usd,
-    protocolNetUsd,
+    totalSelfStakeDot: totals.self_stake_dot,
+    totalSalaryUsd: totals.salary_usd,
+    totalCollateralDot: totals.collateral_dot,
+    totalCommittedDot: totals.committed_dot,
+    totalRevenueDot: totals.revenue,
+    bufferNetDot,
     breakEvenClearing,
+    lastMarginalCost,
+    gatedRounds: totals.gated,
   };
 }
 

@@ -6,6 +6,7 @@ import type {
   RoundResult,
   TenantInfo,
 } from "./types";
+import { minMarketCores } from "./cores";
 import { coreMarginalCostDot } from "./validators";
 
 export interface SimulationState {
@@ -39,6 +40,8 @@ export function openingPrice(reserve: number, params: Parameters): number {
  * We expand into unit-bids, sort descending by effective price (capped at
  * opening_price per the Dutch-auction rule "bids above the current
  * descending price are not allowed"), and pick the top `num_cores`.
+ * System cores are outside the market entirely: never sold, not counted in
+ * consumption, but served by validators (see active_validators).
  *
  * Clearing price = price of the marginal unit, capped at opening_price
  * and floored at reserve_price. If demand < supply, clearing = reserve.
@@ -82,12 +85,14 @@ export function runRound(
 
   const total_demand = unitBids.length;
   const unique_bidders = new Set(input.bidders.filter(b => b.quantity > 0 && b.wtp > 0).map(b => b.id)).size;
-  const num_cores = state.num_cores;
+  const num_cores = state.num_cores; // market cores offered
 
   // Determine clearing price.
   let clearing_price: number;
   let winners: UnitBid[];
-  if (total_demand === 0) {
+  if (total_demand === 0 || num_cores <= 0) {
+    // Nothing demanded, or nothing offered (e.g. system cores have taken the
+    // whole floor): no sale, clearing stays at reserve.
     clearing_price = state.reserve_price;
     winners = [];
   } else if (total_demand <= num_cores) {
@@ -146,6 +151,10 @@ export function runRound(
   }
 
   const cores_sold = winners.length;
+  // Consumption is measured over the market offer only (as the broker pallet
+  // does with cores_offered / cores_sold). System cores are outside it. With
+  // nothing offered there is no signal: consumption reads 0 and the price
+  // rule decays; the supply rule is held at the floor by the clamp below.
   const consumption_rate = num_cores > 0 ? cores_sold / num_cores : 0;
   const revenue = allocations.reduce((s, a) => s + a.totalPaid, 0);
 
@@ -177,22 +186,23 @@ export function runRound(
     recentWindow.reduce((s, v) => s + v, 0) / recentWindow.length;
   const rolling_avg_consumption = num_cores > 0 ? avg_sold / num_cores : 0;
 
-  // Marginal-cost gate (chain solvency): adding a core activates val_per_core
-  // validators the protocol must pay, so expansion only makes sense when the
-  // income a core earns covers that payout. The income indicator is the
-  // clearing (closing) price; the marginal cost is val_per_core × per-validator
-  // payout. Expansion fires only when clearing_price ≥ coreMarginalCost. This
-  // also subsumes the old validator-self-dealing defence: a homogeneous
-  // validator cluster never bids above its profit (a fraction of payout), which
-  // is strictly below the full per-core cost, so it can never push the clearing
-  // price up to the threshold on its own — any saturation that clears the gate
-  // is genuine demand paying more than cost.
+  // Budget-neutrality gate: adding a core activates val_per_core validators,
+  // and the DAP commits DOT for each of them (self-stake top-up that keeps the
+  // enlarged set at the guaranteed yield, plus collateral behind the dotUSD
+  // salary). Coretime revenue flows to the DAP buffer, so expansion is only
+  // budget-neutral when the income a core earns — the clearing (closing)
+  // price — covers that commitment. Expansion fires only when
+  // clearing_price ≥ coreMarginalCost. This also subsumes the
+  // validator-self-dealing defence: a validator cluster never bids above its
+  // own profit (a fraction of payout), which is strictly below the full
+  // committed cost, so it can never push the clearing price up to the
+  // threshold on its own — any saturation that clears the gate is genuine
+  // demand paying more than cost.
   const marginalCost = coreMarginalCostDot(params);
+  const saturated = consumption_rate >= params.SCALE_UP_THRESHOLD;
+  const expansion_gated = saturated && clearing_price < marginalCost;
   let raw_target: number;
-  if (
-    consumption_rate >= params.SCALE_UP_THRESHOLD &&
-    clearing_price >= marginalCost
-  ) {
+  if (saturated && !expansion_gated) {
     // Size supply so this round's sold cores represent POST_EXPANSION_CONSUMPTION
     // of the new supply. Because that target sits above TARGET_CONSUMPTION_RATE,
     // the next round (if demand persists) stays above the price-rule's target
@@ -203,9 +213,12 @@ export function runRound(
     const memoryTarget = Math.ceil(avg_sold / params.TARGET_CONSUMPTION_RATE);
     raw_target = Math.min(num_cores, memoryTarget);
   }
+  // Floor: every renewer keeps a core, and the market never offers fewer
+  // cores than the consensus-minimum validator set serves after the system
+  // cores are assigned (MIN_VALIDATORS / val_per_core − SYSTEM_CORES).
   const next_num_cores = clamp(
     raw_target,
-    Math.max(renewals_count, params.MIN_CORES),
+    Math.max(renewals_count, minMarketCores(params)),
     params.MAX_CORES
   );
 
@@ -225,17 +238,19 @@ export function runRound(
 
   const new_sales_count = cores_sold - renewals_count;
 
-  // Active validator set serving the current round's supply.
-  // System cores sit outside the market but still require val_per_core
-  // validators each, so they add to the active set alongside the market cores.
+  // Active validator set serving market and system cores. MIN_VALIDATORS is
+  // the consensus minimum and is run at any price; system cores are funded
+  // inside it by the budget, not by the market.
+  const system_cores = Math.max(0, params.SYSTEM_CORES);
   const active_validators = Math.max(
     params.MIN_VALIDATORS,
-    (num_cores + params.SYSTEM_CORES) * params.val_per_core
+    (num_cores + system_cores) * params.val_per_core
   );
 
   return {
     round: state.round,
     num_cores,
+    system_cores,
     reserve_price: state.reserve_price,
     opening_price: opening,
     total_demand,
@@ -249,6 +264,8 @@ export function runRound(
     rolling_avg_consumption,
     revenue,
     active_validators,
+    core_marginal_cost: marginalCost,
+    expansion_gated,
     next_reserve_price,
     next_num_cores,
     next_tenants,
